@@ -1,0 +1,27 @@
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+backend/messages.db
+
+# Logs
+logs/
+*.log
+
+# OS
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage
+.coverage
+htmlcov/
