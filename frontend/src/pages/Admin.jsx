@@ -318,8 +318,47 @@ function AboutTab({ data, update, save, saving, uploadImage }) {
           className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
         />
         {data.profileImage && (
-          <img src={data.profileImage} alt="Profile" className="mt-4 w-32 h-32 object-cover rounded-lg" />
+          <div className="mt-4 flex items-center gap-4">
+            <img src={data.profileImage} alt="Profile" className="w-32 h-32 object-cover rounded-lg" />
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => update('about', 'profileImage', '')}
+                className="btn-secondary"
+                type="button"
+              >
+                Remove Image
+              </button>
+              <div className="text-sm text-gray-500">Click Remove Image then Save to persist.</div>
+            </div>
+          </div>
         )}
+      </div>
+
+      <div>
+        <h4 className="mt-4 mb-2 font-semibold text-gray-800">Social Links</h4>
+        <div className="grid md:grid-cols-3 gap-4">
+          <input
+            type="url"
+            value={(data.socialLinks && data.socialLinks.github) || ''}
+            onChange={e => update('about', 'socialLinks', { ...(data.socialLinks || {}), github: e.target.value })}
+            placeholder="GitHub URL"
+            className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+          />
+          <input
+            type="url"
+            value={(data.socialLinks && data.socialLinks.linkedin) || ''}
+            onChange={e => update('about', 'socialLinks', { ...(data.socialLinks || {}), linkedin: e.target.value })}
+            placeholder="LinkedIn URL"
+            className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+          />
+          <input
+            type="url"
+            value={(data.socialLinks && data.socialLinks.twitter) || ''}
+            onChange={e => update('about', 'socialLinks', { ...(data.socialLinks || {}), twitter: e.target.value })}
+            placeholder="Twitter URL"
+            className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+          />
+        </div>
       </div>
 
       <div className="flex gap-3 pt-6 border-t border-gray-200">

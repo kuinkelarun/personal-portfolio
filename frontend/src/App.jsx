@@ -13,8 +13,8 @@ import { ContentProvider } from './contexts/ContentContext'
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
       <ContentProvider>
+        <Navbar />
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<>
@@ -28,8 +28,8 @@ export default function App() {
             <Route path="/admin" element={<Admin />} />
           </Routes>
         </main>
+        <Footer />
       </ContentProvider>
-      <Footer />
     </div>
   )
 }
