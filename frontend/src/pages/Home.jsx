@@ -29,7 +29,7 @@ export default function Home() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mb-8"
           >
-            <span className="inline-block px-4 py-2 bg-gradient-to-r from-indigo-100 to-pink-100 text-indigo-600 rounded-full text-sm font-semibold mb-6">
+            <span className="inline-block px-5 py-3 bg-gradient-to-r from-indigo-100 to-pink-100 text-indigo-600 rounded-full text-lg sm:text-xl font-semibold mb-6">
               Welcome to my portfolio
             </span>
           </motion.div>
@@ -138,12 +138,12 @@ export default function Home() {
           )}
         </motion.div>
 
-        {/* Scroll Indicator */}
+        {/* Scroll Indicator (placed below CTAs to avoid overlap) */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 1.2 }}
-          className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
+          className="mt-12 flex justify-center"
         >
           <a href="#about" className="flex flex-col items-center gap-2 text-gray-400 hover:text-indigo-600">
             <span className="text-sm font-medium">Scroll Down</span>
