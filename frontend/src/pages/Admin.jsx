@@ -72,12 +72,24 @@ export default function Admin() {
       const res = await axios.post(`${API_BASE}/api/upload`, fd, {
         headers: { 'X-ADMIN-TOKEN': token, 'Content-Type': 'multipart/form-data' }
       })
-      if (res.data?.url) {
-        updateSection(section, field, res.data.url)
-        showMessage('success', 'Image uploaded successfully!')
+      const url = res.data?.url
+      if (url) {
+        // If the target section in editContent is an array (e.g., projects),
+        // do not overwrite the whole section object — return the URL so the caller
+        // can update the array item. For top-level objects (like about), update directly.
+        if (Array.isArray(editContent[section])) {
+          showMessage('success', 'Image uploaded successfully!')
+          return url
+        } else {
+          updateSection(section, field, url)
+          showMessage('success', 'Image uploaded successfully!')
+          return url
+        }
       }
+      return null
     } catch (err) {
       showMessage('error', 'Failed to upload image')
+      return null
     }
   }
 
