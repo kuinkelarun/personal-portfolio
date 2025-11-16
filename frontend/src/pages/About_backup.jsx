@@ -135,3 +135,98 @@ export default function About() {
     </section>
   )
 }
+              
+              {/* Tooltip */}
+              <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white text-xs px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                {tech.description}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* My Toolkit Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8 }}
+        className="mb-16"
+      >
+        <h3 className="text-2xl font-bold text-center mb-8 gradient-text">My Toolkit: Empowering the Pipeline</h3>
+        
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {journey.map((phase, idx) => (
+            <motion.div
+              key={phase.phase}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: idx * 0.1 }}
+              className="glass-card rounded-2xl p-6 hover:scale-105 transition-transform duration-300"
+            >
+              <div className="text-center">
+                <div className="text-3xl mb-3">{phase.icon}</div>
+                <h4 className="font-bold text-white mb-2">{phase.phase}</h4>
+                <p className="text-slate-300 text-sm mb-4">{phase.description}</p>
+                <div className="space-y-1">
+                  {phase.tech.map((tech, techIdx) => (
+                    <div key={techIdx} className="text-xs text-teal-400 bg-slate-800/50 px-2 py-1 rounded">
+                      {tech}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Professional Experience */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8 }}
+      >
+        <h3 className="text-2xl font-bold text-center mb-8 gradient-text">Professional Experience</h3>
+        
+        <div className="space-y-6 max-w-4xl mx-auto">
+          {[
+            {
+              role: "Senior Data Analyst",
+              company: "Tech Corp",
+              period: "2022 - Present",
+              summary: "Leading data analytics initiatives and building scalable data pipelines that serve millions of users daily."
+            },
+            {
+              role: "Full Stack Developer", 
+              company: "StartupXYZ",
+              period: "2020 - 2022",
+              summary: "Developed end-to-end web applications using React, Node.js, and cloud infrastructure on AWS."
+            }
+          ].map((exp, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: idx * 0.1 }}
+              className="glass-card rounded-xl p-6"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="font-bold text-white text-lg">{exp.role}</h4>
+                  <p className="text-teal-400 font-medium">{exp.company}</p>
+                  <p className="text-slate-400 text-sm mb-3">{exp.period}</p>
+                  <p className="text-slate-300">{exp.summary}</p>
+                </div>
+                <div className="text-2xl opacity-60">💼</div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+    </section>
+  )
+}

@@ -7,14 +7,14 @@ export default function ProjectCard({ project, index }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
-      className="group relative rounded-2xl border border-slate-200/50 dark:border-slate-800/50 p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm shadow-sm hover:shadow-xl hover:shadow-primary-500/10 transition-all duration-300 hover:-translate-y-1"
+      className="group card relative overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
     >
       {/* Gradient overlay on hover */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
       
       <div className="relative z-10">
         <div className="flex items-start justify-between mb-3">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200">
+          <h3 className="text-xl font-bold text-white group-hover:text-primary-400 transition-colors duration-200">
             {project.title}
           </h3>
           <div className="text-2xl opacity-60 group-hover:opacity-100 transition-opacity duration-200">
@@ -22,7 +22,7 @@ export default function ProjectCard({ project, index }) {
           </div>
         </div>
         
-        <p className="text-slate-600 dark:text-slate-300 mb-4 leading-relaxed">
+        <p className="text-slate-200 mb-4 leading-relaxed">
           {project.description}
         </p>
         
@@ -30,7 +30,7 @@ export default function ProjectCard({ project, index }) {
           {project.tags?.map((tag, idx) => (
             <span 
               key={idx} 
-              className="px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-primary-100 to-purple-100 dark:from-primary-900/30 dark:to-purple-900/30 text-primary-700 dark:text-primary-300 border border-primary-200/50 dark:border-primary-800/50"
+              className="px-3 py-1 rounded-full text-xs font-medium bg-slate-800/40 text-slate-200 border border-slate-700/40"
             >
               {tag}
             </span>

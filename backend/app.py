@@ -1,7 +1,10 @@
 import os
 import sqlite3
+import json
 from datetime import datetime
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.utils import secure_filename
+from pathlib import Path
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -28,8 +31,12 @@ if CORS_ALLOWED_ORIGINS:
 elif FRONTEND_URL:
     cors_origins = [FRONTEND_URL]
 else:
-    # Development fallback
-    cors_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    # Development fallback - include multiple ports for flexibility
+    cors_origins = [
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:5174", "http://127.0.0.1:5174",
+        "http://localhost:5175", "http://127.0.0.1:5175"
+    ]
 
 CORS(app, resources={r"/api/*": {"origins": cors_origins}}, supports_credentials=False)
 
@@ -67,6 +74,116 @@ def init_db():
 
 
 init_db()
+
+# --- Content storage helpers ---
+def _get_content(key: str):
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT value FROM content WHERE key = ?", (key,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        try:
+            return json.loads(row[0])
+        except Exception:
+            return row[0]
+
+def _set_content(key: str, value):
+    text = json.dumps(value)
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.cursor()
+        cur.execute("INSERT INTO content(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, text))
+        conn.commit()
+
+# Initialize default content if missing
+def _ensure_default_content():
+    defaults = {
+        "about": {
+            "name": "Your Name",
+            "headline": "Hi, I'm",
+            "tagline": "Full-Stack Developer | Software Engineer | Tech Enthusiast",
+            "summary": "Building modern web applications with clean code and elegant design. Passionate about creating user-friendly experiences that make a difference.",
+            "bio": "I'm passionate about building innovative solutions that make a difference. With a strong foundation in software development and a keen eye for design, I create applications that are both functional and beautiful.",
+            "profileImage": "",
+            "socialLinks": {
+                "github": "",
+                "linkedin": "",
+                "twitter": ""
+            },
+            "highlights": [
+                {"icon": "🎯", "title": "Focused", "description": "Dedicated to delivering high-quality solutions"},
+                {"icon": "🚀", "title": "Innovative", "description": "Always exploring new technologies and approaches"},
+                {"icon": "💡", "title": "Creative", "description": "Thinking outside the box to solve problems"},
+                {"icon": "🤝", "title": "Collaborative", "description": "Working effectively with teams and stakeholders"}
+            ]
+        },
+        "experience": [
+            {
+                "company": "Tech Company",
+                "role": "Software Engineer",
+                "period": "2022 - Present",
+                "summary": "Building scalable web applications and leading development initiatives.",
+                "responsibilities": [
+                    "Developed and maintained web applications",
+                    "Led a team of developers",
+                    "Implemented CI/CD pipelines"
+                ],
+                "technologies": ["React", "Node.js", "PostgreSQL", "Docker"]
+            }
+        ],
+        "projects": [],
+        "skills": {
+            "technical": ["JavaScript", "Python", "React", "Node.js", "SQL"],
+            "tools": ["Git", "Docker", "VS Code", "AWS"],
+            "soft": ["Communication", "Problem Solving", "Teamwork", "Leadership"],
+            "other": []
+        },
+        "contact": {
+            "email": "your.email@example.com",
+            "phone": "",
+            "location": ""
+        },
+        "layout": {
+            "sections": ["home", "about", "experience", "projects", "skills", "contact"]
+        }
+    }
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS content (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        conn.commit()
+    for k, v in defaults.items():
+        if _get_content(k) is None:
+            _set_content(k, v)
+
+
+_ensure_default_content()
+
+# Ensure uploads directory exists for admin image uploads
+UPLOAD_DIR = Path(os.path.join(os.path.dirname(DB_PATH) or '.', 'static', 'uploads'))
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@app.post('/api/upload')
+def upload_file():
+    # Simple admin-protected upload endpoint
+    if not _is_admin(request):
+        return jsonify({'error': 'unauthorized'}), 401
+    if 'file' not in request.files:
+        return jsonify({'error': 'no file provided'}), 400
+    f = request.files['file']
+    if f.filename == '':
+        return jsonify({'error': 'empty filename'}), 400
+    filename = secure_filename(f.filename)
+    dest = UPLOAD_DIR / filename
+    try:
+        f.save(str(dest))
+    except Exception as e:
+        return jsonify({'error': 'failed to save file'}), 500
+    # Return a URL that the frontend can use
+    url = f"{request.url_root.rstrip('/')}/static/uploads/{filename}"
+    return jsonify({'url': url})
 
 # --- Sample data (can later come from DB) ---
 PROJECTS = [
@@ -110,6 +227,10 @@ def health():
 
 @app.get("/api/projects")
 def get_projects():
+    # Prefer projects stored in content table so admin edits are reflected.
+    val = _get_content('projects')
+    if isinstance(val, list):
+        return jsonify(val)
     return jsonify(PROJECTS)
 
 
@@ -175,6 +296,52 @@ def stats():
         "project_count": len(PROJECTS),
         "message_count": count,
     })
+
+
+# --- Content API ---
+def _is_admin(request):
+    admin_token = os.getenv("ADMIN_TOKEN", "dev-token")
+    # Header `X-ADMIN-TOKEN` or query param `admin_token`
+    provided = request.headers.get("X-ADMIN-TOKEN") or request.args.get("admin_token")
+    return provided and provided == admin_token
+
+
+@app.get('/api/content')
+def get_all_content():
+    # Return all content keys
+    with sqlite3.connect(DB_PATH) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT key, value FROM content")
+        rows = cur.fetchall()
+    data = {}
+    for k, v in rows:
+        try:
+            data[k] = json.loads(v)
+        except Exception:
+            data[k] = v
+    return jsonify(data)
+
+
+@app.get('/api/content/<key>')
+def get_content(key):
+    val = _get_content(key)
+    if val is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(val)
+
+
+@app.put('/api/content/<key>')
+def put_content(key):
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    if not request.is_json:
+        return jsonify({"error": "expected json body"}), 400
+    val = request.get_json()
+    try:
+        _set_content(key, val)
+    except Exception as e:
+        return jsonify({"error": "failed to write content"}), 500
+    return jsonify({"success": True})
 
 
 if __name__ == "__main__":
