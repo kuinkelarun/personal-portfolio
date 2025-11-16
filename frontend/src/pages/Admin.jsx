@@ -199,6 +199,7 @@ export default function Admin() {
     { id: 'projects', label: 'Projects', icon: '💻' },
     { id: 'skills', label: 'Skills', icon: '🎯' },
     { id: 'contact', label: 'Contact', icon: '📧' },
+    { id: 'footer', label: 'Footer', icon: '🔗' },
     { id: 'layout', label: 'Layout', icon: '⚙️' }
   ]
 
@@ -262,8 +263,68 @@ export default function Admin() {
           {activeTab === 'projects' && <ProjectsTab data={editContent.projects || []} update={(data) => setEditContent(prev => ({...prev, projects: data}))} save={() => saveSection('projects')} saving={saving} addItem={addArrayItem} removeItem={removeArrayItem} updateItem={updateArrayItem} uploadImage={uploadImage} token={token} />}
           {activeTab === 'skills' && <SkillsTab data={editContent.skills || {}} update={(data) => setEditContent(prev => ({...prev, skills: data}))} save={() => saveSection('skills')} saving={saving} addSkill={addSkill} removeSkill={removeSkill} />}
           {activeTab === 'contact' && <ContactTab data={editContent.contact || {}} update={updateSection} save={() => saveSection('contact')} saving={saving} />}
+          {activeTab === 'footer' && <FooterTab data={editContent.footerLinks || []} update={(data) => setEditContent(prev => ({...prev, footerLinks: data}))} save={() => saveSection('footerLinks')} saving={saving} />}
           {activeTab === 'layout' && <LayoutTab data={editContent.layout || {}} update={(data) => setEditContent(prev => ({...prev, layout: data}))} save={() => saveSection('layout')} saving={saving} />}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// Footer Tab - manage footer social link blocks
+function FooterTab({ data, update, save, saving }) {
+  const handleAdd = () => {
+    const item = { id: Date.now(), provider: 'custom', label: 'Custom', url: '' }
+    update([...(data || []), item])
+  }
+
+  const updateItem = (idx, field, value) => {
+    const newData = [...(data || [])]
+    newData[idx] = { ...newData[idx], [field]: value }
+    update(newData)
+  }
+
+  const removeItem = (idx) => {
+    update((data || []).filter((_, i) => i !== idx))
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Footer Social Links</h2>
+        <button onClick={handleAdd} className="btn-secondary inline-flex items-center gap-2">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Link
+        </button>
+      </div>
+
+      {(data || []).map((item, idx) => (
+        <div key={item.id || idx} className="p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
+          <div className="grid md:grid-cols-3 gap-3">
+            <select value={item.provider || 'custom'} onChange={e => updateItem(idx, 'provider', e.target.value)} className="px-3 py-2 rounded border-2 border-gray-200">
+              <option value="github">GitHub</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="twitter">Twitter</option>
+              <option value="custom">Custom</option>
+            </select>
+
+            <input type="text" value={item.label || ''} onChange={e => updateItem(idx, 'label', e.target.value)} placeholder="Label (e.g., GitHub)" className="px-3 py-2 rounded border-2 border-gray-200" />
+
+            <input type="url" value={item.url || ''} onChange={e => updateItem(idx, 'url', e.target.value)} placeholder="https://..." className="px-3 py-2 rounded border-2 border-gray-200" />
+          </div>
+
+          <div className="flex justify-end mt-3">
+            <button onClick={() => removeItem(idx)} className="text-red-600 hover:text-red-800">Remove</button>
+          </div>
+        </div>
+      ))}
+
+      <div className="flex gap-3 pt-6 border-t border-gray-200">
+        <button onClick={save} disabled={saving} className="btn-primary disabled:opacity-50">
+          {saving ? 'Saving...' : 'Save Footer Links'}
+        </button>
       </div>
     </div>
   )
