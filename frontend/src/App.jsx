@@ -7,6 +7,7 @@ import Experience from './pages/Experience.jsx'
 import Skills from './pages/Skills.jsx'
 import Contact from './pages/Contact.jsx'
 import Admin from './pages/Admin.jsx'
+import ProgressTracker from './pages/ProgressTracker.jsx'
 import { Routes, Route } from 'react-router-dom'
 import { ContentProvider } from './contexts/ContentContext'
 import { useContent } from './contexts/ContentContext'
@@ -42,6 +43,7 @@ function ContentRoutes() {
         {enabled.includes('contact') && <Contact />}
       </>} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="/progress/tracker" element={<ProgressTracker />} />
     </Routes>
   )
 }

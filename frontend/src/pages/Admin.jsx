@@ -200,7 +200,8 @@ export default function Admin() {
     { id: 'skills', label: 'Skills', icon: '🎯' },
     { id: 'contact', label: 'Contact', icon: '📧' },
     { id: 'footer', label: 'Footer', icon: '🔗' },
-    { id: 'layout', label: 'Layout', icon: '⚙️' }
+    { id: 'layout', label: 'Layout', icon: '⚙️' },
+    { id: 'progress-tracker', label: 'Progress Tracker', icon: '📈' }
   ]
 
   return (
@@ -265,7 +266,284 @@ export default function Admin() {
           {activeTab === 'contact' && <ContactTab data={editContent.contact || {}} update={updateSection} save={() => saveSection('contact')} saving={saving} />}
           {activeTab === 'footer' && <FooterTab data={editContent.footerLinks || []} update={(data) => setEditContent(prev => ({...prev, footerLinks: data}))} save={() => saveSection('footerLinks')} saving={saving} />}
           {activeTab === 'layout' && <LayoutTab data={editContent.layout || {}} update={(data) => setEditContent(prev => ({...prev, layout: data}))} save={() => saveSection('layout')} saving={saving} />}
+          {activeTab === 'progress-tracker' && <ProgressTrackerTab data={editContent.progressTracker || []} update={(data) => setEditContent(prev => ({...prev, progressTracker: data}))} save={() => saveSection('progressTracker')} saving={saving} />}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// Progress Tracker Admin Tab
+function ProgressTrackerTab({ data, update, save, saving }) {
+  // Default tracker content (copied from the tracker component)
+  const DEFAULT_PROGRESS_TRACKER = [
+    {
+      id: 'phase1',
+      name: 'Phase 1: Foundations',
+      weeks: '1-6',
+      color: 'blue',
+      milestones: [
+  { id: 'm1', text: 'Complete mathematics refresher (Linear Algebra, Calculus, Probability)', week: '1-2', details: `Week 1-2 — Mathematics Refresher:
+\n**Linear Algebra (Critical)**
+- Khan Academy: Vectors, matrices, matrix operations, eigenvalues/eigenvectors
+- 3Blue1Brown "Essence of Linear Algebra" (YouTube series—watch all 15 videos)
+- Practice: NumPy exercises implementing matrix operations from scratch
+\n**Calculus & Optimization**
+- Review derivatives, partial derivatives, chain rule, gradient descent
+- Khan Academy Multivariable Calculus (first 5 sections)
+- Focus on: Why gradients matter for training neural networks
+\n**Probability & Statistics**
+- Distributions (normal, binomial), expected value, variance
+- Bayes' theorem, conditional probability
+- StatQuest YouTube channel (Josh Starmer)—watch ML prerequisites playlist
+\n**Daily Commitment:** 2-3 hours` },
+  { id: 'm2', text: 'Master NumPy, Pandas, Matplotlib', week: '3-4', details: `Week 3-4 — Python for ML & Core Libraries:
+\n**Deep Python Skills**
+- Object-oriented programming, decorators, generators, context managers
+- Book: "Effective Python" by Brett Slatkin (skim relevant chapters)
+\n**NumPy Mastery**
+- Array operations, broadcasting, vectorization
+- Practice: Implement matrix multiplication, dot products without loops
+- NumPy official tutorials: https://numpy.org/learn/
+\n**Pandas for Data Manipulation**
+- DataFrames, indexing, groupby, merge/join operations
+- Kaggle's Pandas micro-course (4 hours)
+\n**Matplotlib & Seaborn**
+- Data visualization fundamentals
+- Practice: Visualize different data distributions and model results` },
+  { id: 'm3', text: 'Implement Linear Regression from scratch', week: '3-4', details: `Week 3-4 — Project: Implement Linear Regression from Scratch:
+- Use only NumPy (no scikit-learn)
+- Implement gradient descent manually
+- Visualize loss function convergence
+- Compare your implementation to scikit-learn's version
+\n**Deliverables & Notes:**
+- Jupyter notebook with code and plots
+- Clear explanation of gradient descent, learning rate selection, and testing results
+- Aim for correctness and understanding rather than library shortcuts` },
+  { id: 'm4', text: 'Complete Fast.ai ML course', week: '5-6', details: `Week 5-6 — Classical Machine Learning (Fast.ai + algorithms):
+\n**Course: Fast.ai "Introduction to Machine Learning for Coders"**
+- Focus on practical implementation
+- Complete all coding exercises
+\n**Core Algorithms to Implement**
+1. Linear Regression (already done)
+2. Logistic Regression
+3. Decision Trees
+4. Random Forests
+5. K-Means Clustering
+6. Principal Component Analysis (PCA)
+\n**Scikit-learn Deep Dive**
+- Model training, evaluation, hyperparameter tuning
+- Cross-validation, train/test splits
+- Pipelines and preprocessing` },
+  { id: 'm5', text: 'Implement 5+ classical ML algorithms from scratch', week: '5-6', details: `Week 5-6 — Practical Algorithms & Practice:
+- Implement the classical ML algorithms listed above from scratch or using scikit-learn to compare performance
+- Practice cross-validation and hyperparameter search
+- Build pipelines for data preprocessing and model evaluation
+- Focus on interpretability and proper evaluation metrics` },
+  { id: 'm6', text: 'PROJECT: End-to-end ML pipeline with deployment', week: '5-6', details: `Week 5-6 — Project: End-to-End ML Pipeline:
+- Pick a Kaggle dataset (e.g., Titanic, House Prices)
+- Data cleaning, feature engineering, model selection
+- Compare 3-5 different algorithms
+- Document your process in a Jupyter notebook
+- Deploy a simple prediction API using Flask
+- Leverage your DevOps skills: Dockerize it, add CI/CD
+\n**Daily Commitment:** 3-4 hours` }
+      ]
+    },
+    {
+      id: 'phase2',
+      name: 'Phase 2: Deep Learning Fundamentals',
+      weeks: '7-12',
+      color: 'purple',
+      milestones: [
+  { id: 'm7', text: 'Complete Fast.ai DL Part 1 (lessons 1-7)', week: '7-8', details: `Weeks 7-8 — Neural Networks Foundation:
+- Fast.ai Part 1 lessons 1-7 (top-down approach).
+- Andrew Ng: basics of backprop and network design.
+- Deliverable: small models, understanding of training loops.` },
+  { id: 'm8', text: 'Complete Andrew Ng DL Course 1', week: '7-8', details: `Andrew Ng DL Course 1:
+- Study forward/backprop, activations, loss functions, optimizers.
+- Implement from-scratch examples for clarity.` },
+  { id: 'm9', text: 'PROJECT: Neural Network from scratch (NumPy only)', week: '7-8', details: `Project — Neural Network from scratch:
+- Build a 2-layer NN using NumPy and train on MNIST.
+- Goal: >90% accuracy. Then re-implement in PyTorch.` },
+  { id: 'm10', text: 'Master PyTorch fundamentals', week: '9-10', details: `Master PyTorch fundamentals:
+- Tensors, autograd, nn.Module, DataLoader, training loops.
+- Save/load models, checkpointing, and GPU usage.` },
+  { id: 'm11', text: 'Build CNN for CIFAR-10', week: '9-10', details: `Build CNN for CIFAR-10:
+- Implement conv nets, data augmentation, training/validation pipelines.
+- Evaluate with confusion matrices and error analysis.` },
+  { id: 'm12', text: 'PROJECT: Computer Vision app with deployment', week: '9-10', details: `Project — Computer Vision app with deployment:
+- Use transfer learning (ResNet/EfficientNet), augment data.
+- Track with TensorBoard or W&B; deploy with containers.` },
+  { id: 'm13', text: 'Complete Andrew Ng DL Courses 2, 4, 5', week: '11-12', details: `Complete Andrew Ng Courses 2/4/5:
+- Improving deep nets, CNNs, sequence models.
+- Focus on architecture details and training tips.` },
+  { id: 'm14', text: 'PROJECT: Sequence-to-Sequence model', week: '11-12', details: `Project — Sequence-to-Sequence model:
+- Build a translation or chatbot model with attention.
+- Compare LSTM vs Transformer approaches; deploy as API.` }
+      ]
+    },
+    {
+      id: 'phase3',
+      name: 'Phase 3: Modern AI & LLMs',
+      weeks: '13-18',
+      color: 'green',
+      milestones: [
+  { id: 'm15', text: 'Complete Andrej Karpathy "Neural Networks: Zero to Hero"', week: '13-14', details: `Weeks 13-14 — Transformer deep dive:
+- Study self-attention, positional encodings, decoder-only vs encoder-decoder.
+- Follow Karpathy's "build GPT" tutorial for hands-on experience.` },
+  { id: 'm16', text: 'Complete Hugging Face NLP Course', week: '13-14', details: `Complete Hugging Face NLP Course:
+- Tokenizers, transformers API, pipelines, and fine-tuning basics.` },
+  { id: 'm17', text: 'PROJECT: Build mini-GPT from scratch', week: '13-14', details: `Project — Build mini-GPT:
+- Implement a small character/word level transformer and train on a corpus.
+- Deliverable: training code and sample generations.` },
+  { id: 'm18', text: 'Master Hugging Face Transformers library', week: '15-16', details: `Master Hugging Face Transformers:
+- Loading models, training loops, adapters/PEFT, and inference.` },
+  { id: 'm19', text: 'Learn LangChain & LlamaIndex', week: '15-16', details: `Learn LangChain & LlamaIndex:
+- Build RAG pipelines, embeddings, vector stores, and QA flows.` },
+  { id: 'm20', text: 'PROJECT: Production RAG system with monitoring', week: '15-16', details: `Project — Production RAG system:
+- Build document ingestion, chunking, embeddings, vector search.
+- Add monitoring, caching, rate-limiting for production readiness.` },
+  { id: 'm21', text: 'Learn fine-tuning techniques (LoRA, QLoRA)', week: '17-18', details: `Learn fine-tuning techniques:
+- LoRA, QLoRA, PEFT methods and quantization strategies.
+- Practice efficient fine-tuning on smaller hardware.` },
+  { id: 'm22', text: 'PROJECT: Fine-tune and deploy 7B LLM', week: '17-18', details: `Project — Fine-tune and deploy 7B LLM:
+- Prepare dataset, apply QLoRA/LoRA, evaluate changes vs baseline.
+- Deploy with optimized inference (vLLM/TGI).` }
+      ]
+    },
+    {
+      id: 'phase4',
+      name: 'Phase 4: Elite-Level Skills',
+      weeks: '19-24',
+      color: 'orange',
+      milestones: [
+  { id: 'm23', text: 'Master MLOps tools (MLflow, W&B)', week: '19-20', details: `Weeks 19-20 — MLOps Excellence:
+- Experiment tracking (MLflow/W&B), model registry, monitoring, drift detection.` },
+  { id: 'm24', text: 'PROJECT: Complete MLOps platform', week: '19-20', details: `Project — Complete MLOps platform:
+- Build end-to-end platform: experiment tracking, model serving, retraining pipelines, dashboards.` },
+  { id: 'm25', text: 'Deep dive into chosen specialization', week: '21-22', details: `Deep dive into chosen specialization:
+- Pick CV / NLP / RL and implement state-of-the-art models and projects.` },
+  { id: 'm26', text: 'Implement 2-3 SOTA models from papers', week: '21-22', details: `Implement SOTA models from papers:
+- Reproduce 2-3 recent papers; focus on understanding implementation details.` },
+  { id: 'm27', text: 'Write 3-4 technical blog posts', week: '23-24', details: `Write technical blog posts:
+- Draft 3-4 in-depth posts sharing experiments, findings, and code samples.` },
+  { id: 'm28', text: 'Build portfolio website', week: '23-24', details: `Build portfolio website:
+- Showcase projects, deploy demos and APIs, and include documentation.` },
+  { id: 'm29', text: 'Start job applications (5-10/week)', week: '23-24', details: `Start job applications:
+- Apply 5-10/week; tailor resume and cover letters to each role.` },
+  { id: 'm30', text: 'Target: 5-10 onsites scheduled', week: '23-24', details: `Target onsites scheduled:
+- Prepare interview problems, system design for ML, and behavioral prep; aim for 5-10 onsites.` }
+      ]
+    }
+  ]
+
+  // Ensure array shape
+  const phases = Array.isArray(data) ? data : (data ? Object.values(data) : [])
+
+  // Auto-populate editor with defaults when no data exists (doesn't save to backend until you click Save)
+  useEffect(() => {
+    if ((!data || (Array.isArray(data) && data.length === 0)) && typeof update === 'function') {
+      update(DEFAULT_PROGRESS_TRACKER)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleAddPhase = () => {
+    const newPhase = { id: `phase-${Date.now()}`, name: 'New Phase', weeks: '', color: 'blue', milestones: [] }
+    update([...phases, newPhase])
+  }
+
+  const updatePhase = (idx, field, value) => {
+    const newData = [...phases]
+    newData[idx] = { ...newData[idx], [field]: value }
+    update(newData)
+  }
+
+  const removePhase = (idx) => {
+    const newData = phases.filter((_, i) => i !== idx)
+    update(newData)
+  }
+
+  const addMilestone = (phaseIdx) => {
+    const newData = [...phases]
+    const ms = newData[phaseIdx].milestones || []
+    const newMs = { id: `m-${Date.now()}`, text: 'New milestone', week: '', details: '' }
+    newData[phaseIdx] = { ...newData[phaseIdx], milestones: [...ms, newMs] }
+    update(newData)
+  }
+
+  const updateMilestone = (phaseIdx, msIdx, field, value) => {
+    const newData = [...phases]
+    const ms = [...(newData[phaseIdx].milestones || [])]
+    ms[msIdx] = { ...ms[msIdx], [field]: value }
+    newData[phaseIdx] = { ...newData[phaseIdx], milestones: ms }
+    update(newData)
+  }
+
+  const removeMilestone = (phaseIdx, msIdx) => {
+    const newData = [...phases]
+    const ms = (newData[phaseIdx].milestones || []).filter((_, i) => i !== msIdx)
+    newData[phaseIdx] = { ...newData[phaseIdx], milestones: ms }
+    update(newData)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Progress Tracker</h2>
+        <div className="flex items-center gap-3">
+          <button onClick={handleAddPhase} className="btn-secondary inline-flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Phase
+          </button>
+        </div>
+      </div>
+
+      {phases.map((phase, pIdx) => (
+        <div key={phase.id || pIdx} className="p-6 bg-gray-50 rounded-xl border-2 border-gray-200">
+          <div className="flex items-start justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900">{phase.name || `Phase ${pIdx + 1}`}</h3>
+            <button onClick={() => removePhase(pIdx)} className="text-red-500 hover:text-red-700">Remove Phase</button>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 mb-4">
+            <input type="text" value={phase.name || ''} onChange={e => updatePhase(pIdx, 'name', e.target.value)} placeholder="Phase title" className="px-4 py-2 rounded-lg border-2 border-gray-200" />
+            <input type="text" value={phase.weeks || ''} onChange={e => updatePhase(pIdx, 'weeks', e.target.value)} placeholder="Weeks (e.g., 1-6)" className="px-4 py-2 rounded-lg border-2 border-gray-200" />
+            <select value={phase.color || 'blue'} onChange={e => updatePhase(pIdx, 'color', e.target.value)} className="px-4 py-2 rounded-lg border-2 border-gray-200">
+              <option value="blue">Blue</option>
+              <option value="purple">Purple</option>
+              <option value="green">Green</option>
+              <option value="orange">Orange</option>
+            </select>
+          </div>
+
+          <div className="mb-4">
+            <h4 className="font-semibold mb-2">Milestones</h4>
+            {(phase.milestones || []).map((ms, msIdx) => (
+              <div key={ms.id || msIdx} className="p-3 bg-white rounded-lg border-2 border-gray-100 mb-3">
+                <div className="flex items-start justify-between mb-2">
+                  <input type="text" value={ms.text || ''} onChange={e => updateMilestone(pIdx, msIdx, 'text', e.target.value)} placeholder="Milestone title" className="flex-1 px-3 py-2 rounded border-2 border-gray-200 mr-3" />
+                  <input type="text" value={ms.week || ''} onChange={e => updateMilestone(pIdx, msIdx, 'week', e.target.value)} placeholder="Week" className="w-36 px-3 py-2 rounded border-2 border-gray-200 mr-3" />
+                  <button onClick={() => removeMilestone(pIdx, msIdx)} className="text-red-600">Remove</button>
+                </div>
+                <textarea value={ms.details || ''} onChange={e => updateMilestone(pIdx, msIdx, 'details', e.target.value)} rows={3} placeholder="Detailed notes / week-by-week plan" className="w-full px-3 py-2 rounded border-2 border-gray-200 resize-none" />
+              </div>
+            ))}
+
+            <div>
+              <button onClick={() => addMilestone(pIdx)} className="btn-secondary">Add Milestone</button>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div className="flex gap-3 pt-6 border-t border-gray-200">
+        <button onClick={save} disabled={saving} className="btn-primary disabled:opacity-50">
+          {saving ? 'Saving...' : 'Save Progress Tracker'}
+        </button>
       </div>
     </div>
   )

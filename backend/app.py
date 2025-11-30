@@ -374,6 +374,90 @@ def get_content(key):
     return jsonify(val)
 
 
+@app.get('/api/progress-tracker')
+def get_progress_tracker():
+    """Return the contents of the repository's progress-tracker.txt as JSON.
+    This endpoint is useful for the frontend to display the development progress.
+    """
+    try:
+        repo_root = Path(__file__).resolve().parents[1]
+        file_path = repo_root / 'progress-tracker.txt'
+        if not file_path.exists():
+            return jsonify({"error": "not found"}), 404
+        text = file_path.read_text(encoding='utf-8')
+        return jsonify({"content": text})
+    except Exception:
+        return jsonify({"error": "unable to read file"}), 500
+
+
+@app.get('/progress/tracker')
+def render_progress_tracker_page():
+    """Serve a simple HTML page rendering the progress-tracker.txt file.
+    If the text appears to be Markdown/plain text, convert basic formatting
+    to HTML. If it already contains HTML tags, return as-is.
+    """
+    try:
+        repo_root = Path(__file__).resolve().parents[1]
+        file_path = repo_root / 'progress-tracker.txt'
+        if not file_path.exists():
+            return ("Not found" , 404)
+        text = file_path.read_text(encoding='utf-8')
+
+        # If file looks like HTML, return as-is
+        if '<html' in text.lower() or '<!doctype' in text.lower():
+            return text, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+        # Otherwise render a simple markdown -> html fallback
+        import html as _html
+        def render_simple(md_text: str) -> str:
+            paragraphs = [p.strip() for p in md_text.split('\n\n') if p.strip()]
+            parts = []
+            for p in paragraphs:
+                # Heading handling
+                if p.startswith('### '):
+                    parts.append(f"<h3>{_html.escape(p[4:])}</h3>")
+                    continue
+                if p.startswith('## '):
+                    parts.append(f"<h2>{_html.escape(p[3:])}</h2>")
+                    continue
+                if p.startswith('# '):
+                    parts.append(f"<h1>{_html.escape(p[2:])}</h1>")
+                    continue
+                # Regular paragraph: preserve single line breaks
+                escaped = _html.escape(p).replace('\n', '<br>')
+                parts.append(f"<p>{escaped}</p>")
+            return '\n'.join(parts)
+
+        body = render_simple(text)
+        html_page = f"""
+        <!doctype html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>Progress Tracker</title>
+          <style>
+            body {{ font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:#f7fafc; color:#1f2937; padding:24px; }}
+            .container {{ max-width:900px; margin:0 auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(15,23,42,0.06); }}
+            pre {{ white-space:pre-wrap; word-wrap:break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace; background:#f3f4f6; padding:12px; border-radius:6px; overflow:auto }}
+            h1,h2,h3 {{ color:#111827 }}
+            p {{ line-height:1.6 }}
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>Progress Tracker</h1>
+            {body}
+          </div>
+        </body>
+        </html>
+        """
+
+        return html_page, 200, {'Content-Type': 'text/html; charset=utf-8'}
+    except Exception:
+        return ("Internal Server Error", 500)
+
+
 @app.put('/api/content/<key>')
 def put_content(key):
     if not _is_admin(request):
