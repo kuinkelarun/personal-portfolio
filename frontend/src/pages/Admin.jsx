@@ -542,9 +542,13 @@ function ExperienceTab({ data, update, save, saving, addItem, removeItem, update
 
 // Projects Tab
 function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
+  // Ensure `projects` is always an array. Some stored content may be an object
+  // (e.g., keyed by id) — coerce to an array for the admin UI to avoid runtime errors.
+  const projects = Array.isArray(data) ? data : (data ? Object.values(data) : [])
+
   const handleAdd = () => {
     const newProject = { id: Date.now(), title: '', description: '', tech: [], demo: '', github: '', image: '' }
-    update([...data, newProject])
+    update([...projects, newProject])
   }
 
   return (
@@ -559,12 +563,12 @@ function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
         </button>
       </div>
 
-      {data.map((project, idx) => (
+      {projects.map((project, idx) => (
         <div key={project.id || idx} className="p-6 bg-gray-50 rounded-xl border-2 border-gray-200">
           <div className="flex items-start justify-between mb-4">
             <h3 className="text-lg font-bold text-gray-900">Project #{idx + 1}</h3>
             <button
-              onClick={() => update(data.filter((_, i) => i !== idx))}
+              onClick={() => update(projects.filter((_, i) => i !== idx))}
               className="text-red-500 hover:text-red-700"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -577,7 +581,7 @@ function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
             type="text"
             value={project.title || ''}
             onChange={e => {
-              const newData = [...data]
+              const newData = [...projects]
               newData[idx] = { ...newData[idx], title: e.target.value }
               update(newData)
             }}
@@ -588,7 +592,7 @@ function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
           <textarea
             value={project.description || ''}
             onChange={e => {
-              const newData = [...data]
+              const newData = [...projects]
               newData[idx] = { ...newData[idx], description: e.target.value }
               update(newData)
             }}
@@ -602,7 +606,7 @@ function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
               type="text"
               value={project.demo || ''}
               onChange={e => {
-                const newData = [...data]
+                const newData = [...projects]
                 newData[idx] = { ...newData[idx], demo: e.target.value }
                 update(newData)
               }}
@@ -613,7 +617,7 @@ function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
               type="text"
               value={project.github || ''}
               onChange={e => {
-                const newData = [...data]
+                const newData = [...projects]
                 newData[idx] = { ...newData[idx], github: e.target.value }
                 update(newData)
               }}
@@ -626,7 +630,7 @@ function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
             type="text"
             value={(project.tech || []).join(', ')}
             onChange={e => {
-              const newData = [...data]
+              const newData = [...projects]
               newData[idx] = { ...newData[idx], tech: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }
               update(newData)
             }}
@@ -643,7 +647,7 @@ function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
                 if (e.target.files[0]) {
                   uploadImage(e.target.files[0], 'projects', 'image').then(url => {
                     if (url) {
-                      const newData = [...data]
+                      const newData = [...projects]
                       newData[idx] = { ...newData[idx], image: url }
                       update(newData)
                     }

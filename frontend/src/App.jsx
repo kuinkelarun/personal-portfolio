@@ -9,6 +9,7 @@ import Contact from './pages/Contact.jsx'
 import Admin from './pages/Admin.jsx'
 import { Routes, Route } from 'react-router-dom'
 import { ContentProvider } from './contexts/ContentContext'
+import { useContent } from './contexts/ContentContext'
 
 export default function App() {
   return (
@@ -16,20 +17,31 @@ export default function App() {
       <ContentProvider>
         <Navbar />
         <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<>
-              <Home />
-              <About />
-              <Experience />
-              <Projects />
-              <Skills />
-              <Contact />
-            </>} />
-            <Route path="/admin" element={<Admin />} />
-          </Routes>
+          <ContentRoutes />
         </main>
         <Footer />
       </ContentProvider>
     </div>
+  )
+}
+
+function ContentRoutes() {
+  const { content } = useContent()
+  const enabled = (content && content.layout && Array.isArray(content.layout.sections))
+    ? content.layout.sections
+    : ['home', 'about', 'experience', 'projects', 'skills', 'contact']
+
+  return (
+    <Routes>
+      <Route path="/" element={<>
+        {enabled.includes('home') && <Home />}
+        {enabled.includes('about') && <About />}
+        {enabled.includes('experience') && <Experience />}
+        {enabled.includes('projects') && <Projects />}
+        {enabled.includes('skills') && <Skills />}
+        {enabled.includes('contact') && <Contact />}
+      </>} />
+      <Route path="/admin" element={<Admin />} />
+    </Routes>
   )
 }

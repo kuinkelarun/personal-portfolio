@@ -42,6 +42,30 @@ CORS(app, resources={r"/api/*": {"origins": cors_origins}}, supports_credentials
 
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
+
+# Fallback: ensure CORS headers are present on all responses (helpful for local dev)
+@app.after_request
+def _force_cors_headers(response):
+    try:
+        origin = request.headers.get("Origin")
+        # In development, mirror the Origin header so 127.0.0.1 vs localhost mismatches don't block preflight
+        env = os.getenv("FLASK_ENV", "").lower()
+        if env == "development" and origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+        else:
+            if origin and (origin in cors_origins or "*" in cors_origins):
+                response.headers["Access-Control-Allow-Origin"] = origin
+            elif cors_origins:
+                response.headers["Access-Control-Allow-Origin"] = cors_origins[0]
+            else:
+                response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-ADMIN-TOKEN"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+    except Exception:
+        # Be conservative: don't fail the request if header injection fails
+        pass
+    return response
+
 # --- SQLite helpers ---
 
 def _db_path_from_url(url: str) -> str:
@@ -220,6 +244,26 @@ PROJECTS = [
 ]
 
 
+# If the content table has no `projects` entry, seed it with the in-file sample PROJECTS
+# This makes the admin UI show example projects out-of-the-box without requiring a manual
+# PUT to `/api/content/projects`. It's idempotent and only writes when the key is missing.
+try:
+    current_projects = _get_content('projects')
+    # If missing or empty list/object, seed with sample PROJECTS
+    if not current_projects:
+        _set_content('projects', PROJECTS)
+    # Ensure footerLinks exists so Footer tab isn't empty in admin
+    if _get_content('footerLinks') is None:
+        sample_footer = [
+            {"id": 1, "provider": "github", "label": "GitHub", "url": "https://github.com/kuinkelarun"},
+            {"id": 2, "provider": "linkedin", "label": "LinkedIn", "url": "https://linkedin.com/in/arun-kuinkel-47404999"}
+        ]
+        _set_content('footerLinks', sample_footer)
+except Exception:
+    # If DB isn't writable or something else goes wrong, don't crash the app on import
+    pass
+
+
 @app.get("/api/health")
 def health():
     return jsonify({"status": "ok"})
@@ -345,5 +389,7 @@ def put_content(key):
 
 
 if __name__ == "__main__":
-    # For local debug only; in Render use gunicorn app:app
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # For local debug only; in production use a WSGI server (gunicorn) or container
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", port=port, debug=debug)
