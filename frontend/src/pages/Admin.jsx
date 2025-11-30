@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import axios from 'axios'
 import { useContent } from '../contexts/ContentContext'
@@ -488,6 +488,52 @@ function ProgressTrackerTab({ data, update, save, saving }) {
     update(newData)
   }
 
+  // Per-milestone rich-text editor that keeps local state to avoid caret reset
+  function MilestoneEditor({ value = '', onChange }) {
+    const ref = useRef(null)
+    const [focused, setFocused] = useState(false)
+
+    // When value changes from props and editor not focused, update DOM
+    useEffect(() => {
+      const el = ref.current
+      if (!el) return
+      if (!focused) el.innerHTML = value || ''
+    }, [value, focused])
+
+    const runCmd = (cmd, val) => {
+      const el = ref.current
+      if (!el) return
+      try { document.execCommand(cmd, false, val || null) } catch (e) { console.warn('execCommand failed', e) }
+    }
+
+    // clearFormatting removed per request
+
+    return (
+      <div className="w-full">
+        <div className="flex gap-2 mb-2">
+          <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => runCmd('bold')} className="px-2 py-1 border rounded">B</button>
+          <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => runCmd('italic')} className="px-2 py-1 border rounded">I</button>
+          <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => runCmd('underline')} className="px-2 py-1 border rounded">U</button>
+          {/* Unordered/Ordered list buttons removed per request */}
+          <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => {
+            const url = window.prompt('Enter URL (https://...)')
+            if (url) runCmd('createLink', url)
+          }} className="px-2 py-1 border rounded">Link</button>
+          {/* Clear button removed per request */}
+        </div>
+
+        <div
+          ref={ref}
+          onFocus={() => setFocused(true)}
+          onBlur={() => { setFocused(false); onChange && onChange(ref.current ? ref.current.innerHTML : '') }}
+          contentEditable
+          suppressContentEditableWarning
+          className="w-full min-h-[3rem] px-3 py-2 rounded border-2 border-gray-200 whitespace-pre-wrap break-words"
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
@@ -529,7 +575,10 @@ function ProgressTrackerTab({ data, update, save, saving }) {
                   <input type="text" value={ms.week || ''} onChange={e => updateMilestone(pIdx, msIdx, 'week', e.target.value)} placeholder="Week" className="w-36 px-3 py-2 rounded border-2 border-gray-200 mr-3" />
                   <button onClick={() => removeMilestone(pIdx, msIdx)} className="text-red-600">Remove</button>
                 </div>
-                <textarea value={ms.details || ''} onChange={e => updateMilestone(pIdx, msIdx, 'details', e.target.value)} rows={3} placeholder="Detailed notes / week-by-week plan" className="w-full px-3 py-2 rounded border-2 border-gray-200 resize-none" />
+                <MilestoneEditor
+                  value={ms.details || ''}
+                  onChange={(html) => updateMilestone(pIdx, msIdx, 'details', html)}
+                />
               </div>
             ))}
 

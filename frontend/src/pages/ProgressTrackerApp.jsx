@@ -28,6 +28,18 @@ const storageWrapper = {
 }
 
 export default function ProgressTrackerApp() {
+  // Add attributes/classes to <a> tags so links open in new tab and are styled
+  const transformLinksForRender = (html) => {
+    if (!html || typeof html !== 'string') return html
+    // Add target and rel if not present, and add a Tailwind-friendly class for color/underline
+    try {
+      // Add class + target+rel only when <a doesn't already have target/rel
+      return html.replace(/<a(?![^>]*\btarget=)(?![^>]*\brel=)(?![^>]*\bclass=)/gi, '<a class="text-blue-300 underline" target="_blank" rel="noopener noreferrer"')
+                 .replace(/<a(?![^>]*\btarget=)(?![^>]*\brel=)(?=[^>]*\bclass=)/gi, '<a target="_blank" rel="noopener noreferrer"')
+    } catch (e) {
+      return html
+    }
+  }
   const [progress, setProgress] = useState({})
   const [activePhase, setActivePhase] = useState(0)
   const [dailyLogs, setDailyLogs] = useState([])
@@ -320,7 +332,7 @@ export default function ProgressTrackerApp() {
 
               <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
                 {displayedPhases.map((phase, idx) => {
-                  const Icon = phase.icon
+                  const Icon = phase.icon || BookOpen
                   const phaseProgress = getPhaseProgress(phase)
                   return (
                     <button
@@ -342,7 +354,7 @@ export default function ProgressTrackerApp() {
 
               {displayedPhases.map((phase, idx) => {
                 if (idx !== activePhase) return null
-                const Icon = phase.icon
+                const Icon = phase.icon || BookOpen
                 const phaseProgress = getPhaseProgress(phase)
 
                 return (
@@ -407,22 +419,37 @@ export default function ProgressTrackerApp() {
                                   <div className="text-sm text-slate-400 ml-4">{isExpanded ? 'Hide details' : 'Show details'}</div>
                                 </div>
 
-                                {isExpanded && (
-                                  <div className="mt-3 bg-slate-800 p-3 rounded border border-slate-700 text-slate-300">
-                                    {detailText ? (
-                                      detailText.split('\n').map((line, i) => {
-                                        const trimmed = line.trim()
-                                        if (trimmed.startsWith('- ')) {
-                                          // render bullet list items together
-                                          return <div key={i} className="ml-2">• {trimmed.slice(2)}</div>
-                                        }
-                                        return <p key={i} className="mb-1">{trimmed}</p>
-                                      })
-                                    ) : (
-                                      <p className="text-slate-400">No additional details available.</p>
-                                    )}
-                                  </div>
-                                )}
+                                        {isExpanded && (
+                                          <div className="mt-3 bg-slate-800 p-3 rounded border border-slate-700 text-slate-300">
+                                            {milestone && milestone.details ? (
+                                              // If the admin-saved details contain HTML tags, render as HTML.
+                                              // Otherwise fall back to treating it as plain text with newlines.
+                                              /<[^>]+>/.test(milestone.details) ? (
+                                                <div className="text-slate-300">
+                                                  <div dangerouslySetInnerHTML={{ __html: transformLinksForRender(milestone.details) }} />
+                                                </div>
+                                              ) : (
+                                                detailText.split('\n').map((line, i) => {
+                                                  const trimmed = line.trim()
+                                                  if (trimmed.startsWith('- ')) {
+                                                    return <div key={i} className="ml-2">• {trimmed.slice(2)}</div>
+                                                  }
+                                                  return <p key={i} className="mb-1">{trimmed}</p>
+                                                })
+                                              )
+                                            ) : (detailText ? (
+                                              detailText.split('\n').map((line, i) => {
+                                                const trimmed = line.trim()
+                                                if (trimmed.startsWith('- ')) {
+                                                  return <div key={i} className="ml-2">• {trimmed.slice(2)}</div>
+                                                }
+                                                return <p key={i} className="mb-1">{trimmed}</p>
+                                              })
+                                            ) : (
+                                              <p className="text-slate-400">No additional details available.</p>
+                                            ))}
+                                          </div>
+                                        )}
                               </div>
                             </div>
                           </div>
