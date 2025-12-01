@@ -15,12 +15,52 @@ export default function Admin() {
 
   const { content, fetchContent, updateKey } = useContent()
   const [editContent, setEditContent] = useState({})
+  const [selectedTrackerKey, setSelectedTrackerKey] = useState('progressTracker')
+  const [unsavedKeys, setUnsavedKeys] = useState([])
 
   useEffect(() => {
     if (unlocked && content) {
       setEditContent(content)
     }
   }, [content, unlocked])
+
+  // Ensure a default tracker key exists in editContent for the editor
+  useEffect(() => {
+    if (unlocked && editContent) {
+      const DEFAULT_HEADER = 'DevOps to Elite AI Engineer - 6 Month Journey'
+      let changed = false
+      const next = { ...editContent }
+
+      // If the key is missing, create an object shape with header + phases
+      if (next.progressTracker === undefined || next.progressTracker === null) {
+        next.progressTracker = { header: DEFAULT_HEADER, phases: [] }
+        changed = true
+      } else if (Array.isArray(next.progressTracker)) {
+        // convert legacy array shape to object shape
+        next.progressTracker = { header: DEFAULT_HEADER, phases: next.progressTracker }
+        changed = true
+      } else if (typeof next.progressTracker === 'object' && !next.progressTracker.header) {
+        next.progressTracker = { ...next.progressTracker, header: DEFAULT_HEADER }
+        changed = true
+      }
+
+      if (changed) setEditContent(next)
+    }
+  }, [unlocked, editContent])
+
+  // Navigation guard: warn when leaving page with unsaved changes
+  useEffect(() => {
+    const handler = (e) => {
+      if (unsavedKeys.length > 0) {
+        e.preventDefault()
+        e.returnValue = ''
+        return ''
+      }
+      return undefined
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [unsavedKeys])
 
   useEffect(() => {
     if (unlocked) fetchContent()
@@ -34,6 +74,30 @@ export default function Admin() {
     localStorage.setItem('admin_token', token)
     setUnlocked(true)
     showMessage('success', 'Admin access granted')
+  }
+
+  function markDirty(key) {
+    setUnsavedKeys(prev => {
+      if (prev.includes(key)) return prev
+      return [...prev, key]
+    })
+  }
+
+  function discardChanges(key) {
+    setEditContent(prev => {
+      const next = { ...prev }
+      // If key exists in backend content, reset to that value
+      if (content && content[key] !== undefined) {
+        next[key] = content[key]
+      } else {
+        // remove the key entirely
+        delete next[key]
+      }
+      return next
+    })
+    setUnsavedKeys(prev => prev.filter(k => k !== key))
+    // if the selected key was removed, switch selection back to default
+    if (!content || content[key] === undefined) setSelectedTrackerKey('progressTracker')
   }
 
   function logout() {
@@ -55,6 +119,8 @@ export default function Admin() {
       const result = await updateKey(section, editContent[section], token)
       if (result.success) {
         showMessage('success', `${section.charAt(0).toUpperCase() + section.slice(1)} saved successfully!`)
+        // clear unsaved mark for this key
+        setUnsavedKeys(prev => prev.filter(k => k !== section))
       } else {
         showMessage('error', 'Failed to save. Please check your token.')
       }
@@ -244,7 +310,16 @@ export default function Admin() {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                // If leaving the progress-tracker tab while that tracker has unsaved changes, warn the user
+                if (activeTab === 'progress-tracker' && tab.id !== 'progress-tracker' && unsavedKeys.includes(selectedTrackerKey)) {
+                  const leave = window.confirm('You have unsaved changes in the Progress Tracker. Click OK to discard and continue, or Cancel to stay and save.')
+                  if (!leave) return
+                  // discard changes and proceed
+                  discardChanges(selectedTrackerKey)
+                }
+                setActiveTab(tab.id)
+              }}
               className={`px-6 py-3 rounded-lg font-semibold whitespace-nowrap inline-flex items-center gap-2 transition-all ${
                 activeTab === tab.id
                   ? 'bg-gradient-to-r from-indigo-600 to-pink-600 text-white shadow-lg'
@@ -266,15 +341,62 @@ export default function Admin() {
           {activeTab === 'contact' && <ContactTab data={editContent.contact || {}} update={updateSection} save={() => saveSection('contact')} saving={saving} />}
           {activeTab === 'footer' && <FooterTab data={editContent.footerLinks || []} update={(data) => setEditContent(prev => ({...prev, footerLinks: data}))} save={() => saveSection('footerLinks')} saving={saving} />}
           {activeTab === 'layout' && <LayoutTab data={editContent.layout || {}} update={(data) => setEditContent(prev => ({...prev, layout: data}))} save={() => saveSection('layout')} saving={saving} />}
-          {activeTab === 'progress-tracker' && <ProgressTrackerTab data={editContent.progressTracker || []} update={(data) => setEditContent(prev => ({...prev, progressTracker: data}))} save={() => saveSection('progressTracker')} saving={saving} />}
+          {activeTab === 'progress-tracker' && (
+            <div>
+              <TrackerSelector
+                editContent={editContent}
+                selectedKey={selectedTrackerKey}
+                setSelectedKey={setSelectedTrackerKey}
+                createKey={(key) => {
+                  const defaultHeader = 'DevOps to Elite AI Engineer - 6 Month Journey'
+                  setEditContent(prev => ({ ...prev, [key]: { header: defaultHeader, phases: [] } }))
+                  setSelectedTrackerKey(key)
+                  markDirty(key)
+                }}
+              />
+              <ProgressTrackerTab
+                data={editContent[selectedTrackerKey] ? (Array.isArray(editContent[selectedTrackerKey]) ? editContent[selectedTrackerKey] : (editContent[selectedTrackerKey].phases || [])) : (editContent.progressTracker || [])}
+                update={(data) => { setEditContent(prev => ({ ...prev, [selectedTrackerKey]: { ...(prev[selectedTrackerKey] || {}), phases: data } })); markDirty(selectedTrackerKey) }}
+                save={() => saveSection(selectedTrackerKey)}
+                saving={saving}
+                trackerHeader={(editContent[selectedTrackerKey] && editContent[selectedTrackerKey].header) || ''}
+                updateHeader={(h) => { setEditContent(prev => ({ ...prev, [selectedTrackerKey]: { ...(prev[selectedTrackerKey] || {}), header: h } })); markDirty(selectedTrackerKey) }}
+                cancel={() => discardChanges(selectedTrackerKey)}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
+// Small selector UI for choosing/creating progress trackers
+function TrackerSelector({ editContent, selectedKey, setSelectedKey, createKey }) {
+  const keys = Object.keys(editContent || {}).filter(k => k.startsWith('progressTracker'))
+
+  const handleAdd = () => {
+    // Find next available suffix
+    let n = 1
+    while (keys.includes(n === 1 ? 'progressTracker' : `progressTracker${n}`)) n++
+    const newKey = n === 1 ? 'progressTracker' : `progressTracker${n}`
+    createKey(newKey)
+  }
+
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <label className="text-sm text-gray-600">Select Tracker:</label>
+      <select value={selectedKey} onChange={e => setSelectedKey(e.target.value)} className="px-3 py-2 rounded border-2 border-gray-200">
+        {keys.length === 0 && <option value="progressTracker">progressTracker</option>}
+        {keys.map(k => <option key={k} value={k}>{k}</option>)}
+      </select>
+      <button onClick={handleAdd} className="btn-secondary">Add Tracker</button>
+    </div>
+  )
+}
+
 // Progress Tracker Admin Tab
-function ProgressTrackerTab({ data, update, save, saving }) {
+function ProgressTrackerTab({ data, update, save, saving, trackerHeader, updateHeader, cancel }) {
   // Default tracker content (copied from the tracker component)
   const DEFAULT_PROGRESS_TRACKER = [
     {
@@ -443,7 +565,9 @@ function ProgressTrackerTab({ data, update, save, saving }) {
 
   // Auto-populate editor with defaults when no data exists (doesn't save to backend until you click Save)
   useEffect(() => {
-    if ((!data || (Array.isArray(data) && data.length === 0)) && typeof update === 'function') {
+    // Only auto-populate when `data` is strictly null/undefined —
+    // if data is an empty array (created but intentionally blank), don't inject defaults automatically.
+    if ((data === undefined || data === null) && typeof update === 'function') {
       update(DEFAULT_PROGRESS_TRACKER)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -537,7 +661,10 @@ function ProgressTrackerTab({ data, update, save, saving }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Progress Tracker</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Progress Tracker</h2>
+          <input type="text" value={trackerHeader || ''} onChange={e => updateHeader && updateHeader(e.target.value)} placeholder="Tracker heading (visible to viewers)" className="mt-2 px-3 py-2 rounded border-2 border-gray-200 w-full" />
+        </div>
         <div className="flex items-center gap-3">
           <button onClick={handleAddPhase} className="btn-secondary inline-flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -590,6 +717,9 @@ function ProgressTrackerTab({ data, update, save, saving }) {
       ))}
 
       <div className="flex gap-3 pt-6 border-t border-gray-200">
+        {typeof cancel === 'function' && (
+          <button onClick={cancel} className="btn-secondary">Cancel</button>
+        )}
         <button onClick={save} disabled={saving} className="btn-primary disabled:opacity-50">
           {saving ? 'Saving...' : 'Save Progress Tracker'}
         </button>

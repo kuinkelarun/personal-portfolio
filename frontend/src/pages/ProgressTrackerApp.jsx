@@ -50,6 +50,28 @@ export default function ProgressTrackerApp() {
   // Content from backend/context (declare early so effects can reference it)
   const { content, updateKey } = useContent()
 
+  // Map URL -> content key. Example paths:
+  // - /progress -> progressTracker
+  // - /progress/tracker -> progressTracker
+  // - /progress/tracker2 -> progressTracker2 (key matches segment)
+  const getContentKeyFromPath = () => {
+    try {
+      const p = (window.location && window.location.pathname) || ''
+      const match = p.match(/\/progress(?:\/(.*))?$/)
+      const seg = match && match[1] ? match[1].replace(/\/+$/, '') : ''
+      if (!seg || seg === 'tracker') return 'progressTracker'
+      // If the URL segment is like "tracker2", map it to the admin key "progressTracker2".
+      const trackerMatch = seg.match(/^tracker(\d+)$/)
+      if (trackerMatch) return `progressTracker${trackerMatch[1]}`
+      // If someone navigates to the exact content key (e.g. /progress/progressTracker2), allow it.
+      return seg
+    } catch (e) {
+      return 'progressTracker'
+    }
+  }
+
+  const contentKey = getContentKeyFromPath()
+
   // Track whether this client has an admin token in localStorage (controls admin-only UI)
   useEffect(() => {
     const check = () => setIsAdmin(!!localStorage.getItem('admin_token'))
@@ -86,16 +108,30 @@ export default function ProgressTrackerApp() {
     loadData()
   }, [])
 
-  // If admin has saved default/completed flags on milestones (e.g. milestone.completed === true),
+  // If admin has saved default/completed flags on milestones for this tracker key,
   // merge those into the per-user `progress` state on load — but do not overwrite any local progress
-  // the user has already set (local wins).
+  // the user has already set (local wins). Uses the tracker content key derived from the URL.
   useEffect(() => {
     if (!initialLoadDone) return
-    if (!content || !Array.isArray(content.progressTracker)) return
+    if (!content) return
+
+    // Support two shapes:
+    // - legacy: content.progressTracker is an array of phases
+    // - per-key: content[contentKey] is an object { header, phases } or an array
+    const getAdminPhases = () => {
+      const v = content[contentKey]
+      if (Array.isArray(v)) return v
+      if (v && Array.isArray(v.phases)) return v.phases
+      // Fallback to legacy progressTracker key
+      if (Array.isArray(content.progressTracker)) return content.progressTracker
+      return null
+    }
+
+    const adminPhases = getAdminPhases()
+    if (!adminPhases) return
 
     setProgress(prev => {
       try {
-        const adminPhases = content.progressTracker || []
         const merged = { ...prev }
         let changed = false
 
@@ -126,7 +162,7 @@ export default function ProgressTrackerApp() {
       }
       return prev
     })
-  }, [content, initialLoadDone])
+  }, [content, contentKey, initialLoadDone])
 
   const saveProgress = async (newProgress) => {
     setProgress(newProgress)
@@ -206,11 +242,29 @@ export default function ProgressTrackerApp() {
       ]
     }
   ]
+  // Prefer admin-provided content for the selected content key when available
+  const getDisplayedPhases = () => {
+    if (!content) return phases
+    const v = content[contentKey]
+    if (Array.isArray(v) && v.length) return v.map(p => ({ ...p, milestones: p.milestones || [] }))
+    if (v && Array.isArray(v.phases) && v.phases.length) return v.phases.map(p => ({ ...p, milestones: p.milestones || [] }))
+    // legacy fallback
+    if (Array.isArray(content.progressTracker) && content.progressTracker.length) return content.progressTracker.map(p => ({ ...p, milestones: p.milestones || [] }))
+    return phases
+  }
 
-  // Prefer admin-provided content.progressTracker when available
-  const displayedPhases = (content && Array.isArray(content.progressTracker) && content.progressTracker.length)
-    ? content.progressTracker.map(p => ({ ...p, milestones: p.milestones || [] }))
-    : phases
+  const displayedPhases = getDisplayedPhases()
+
+  // Tracker header (admin editable). Fallback to default title when missing.
+  const trackerHeader = (() => {
+    // Default to the prominent subtitle used in the UI when no header is provided
+    const DEFAULT_TITLE = 'DevOps to Elite AI Engineer - 6 Month Journey'
+    if (!content) return DEFAULT_TITLE
+    const v = content[contentKey]
+    if (v && typeof v.header === 'string' && v.header.trim()) return v.header
+    // legacy content may not have header — use the UI subtitle as a friendly default
+    return DEFAULT_TITLE
+  })()
 
   // Expanded state for milestone details (click milestone to expand)
   const [expanded, setExpanded] = useState({})
@@ -230,9 +284,17 @@ export default function ProgressTrackerApp() {
     // If admin is logged in, persist the admin-default on the backend
     try {
       const token = localStorage.getItem('admin_token')
-      if (token && content && Array.isArray(content.progressTracker)) {
-        // Build updated progressTracker payload
-        const updated = (content.progressTracker || []).map(p => {
+        if (token && content) {
+        // Build updated payload for the selected content key
+        // Read the current admin phases from content for this key (support object or array shapes)
+        const currentForKey = (() => {
+          const v = content[contentKey]
+          if (Array.isArray(v)) return v
+          if (v && Array.isArray(v.phases)) return v.phases
+          return Array.isArray(content.progressTracker) ? content.progressTracker : []
+        })()
+
+        const updated = (currentForKey || []).map(p => {
           if (p.id !== phaseId) return p
           return {
             ...p,
@@ -246,7 +308,7 @@ export default function ProgressTrackerApp() {
         })
 
         // Fire-and-forget update; updateKey will refresh content on success
-        updateKey('progressTracker', updated, token).then(res => {
+        updateKey(contentKey, updated, token).then(res => {
           // If update failed, surface helpful feedback for admin users
           if (!res || !res.success) {
             console.warn('Failed to persist admin completion', res?.error)
@@ -379,7 +441,7 @@ export default function ProgressTrackerApp() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            AI Engineer Transformation Tracker
+            {trackerHeader}
           </h1>
           <p className="text-slate-400">DevOps to Elite AI Engineer - 6 Month Journey</p>
         </div>

@@ -43,6 +43,9 @@ function ContentRoutes() {
         {enabled.includes('contact') && <Contact />}
       </>} />
       <Route path="/admin" element={<Admin />} />
+      {/* Progress tracker routes: default, specific tracker key, and legacy path */}
+      <Route path="/progress" element={<ProgressTracker />} />
+      <Route path="/progress/:trackerKey" element={<ProgressTracker />} />
       <Route path="/progress/tracker" element={<ProgressTracker />} />
     </Routes>
   )
