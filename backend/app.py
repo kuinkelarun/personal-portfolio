@@ -19,6 +19,8 @@ FRONTEND_URL = os.getenv("FRONTEND_URL")
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS")
 RATE_LIMIT = os.getenv("RATE_LIMIT", "5/minute")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///messages.db")
+#ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "admin")
+ADMIN_TOKEN = "admin"
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY

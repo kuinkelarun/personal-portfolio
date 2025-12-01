@@ -44,6 +44,23 @@ export default function ProgressTrackerApp() {
   const [activePhase, setActivePhase] = useState(0)
   const [dailyLogs, setDailyLogs] = useState([])
   const [newLog, setNewLog] = useState({ hours: '', activity: '', notes: '' })
+  const [initialLoadDone, setInitialLoadDone] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // Content from backend/context (declare early so effects can reference it)
+  const { content, updateKey } = useContent()
+
+  // Track whether this client has an admin token in localStorage (controls admin-only UI)
+  useEffect(() => {
+    const check = () => setIsAdmin(!!localStorage.getItem('admin_token'))
+    check()
+    // Listen for storage changes (other tabs) to keep admin state in sync
+    const handler = (e) => {
+      if (e.key === 'admin_token') check()
+    }
+    window.addEventListener && window.addEventListener('storage', handler)
+    return () => window.removeEventListener && window.removeEventListener('storage', handler)
+  }, [])
 
   useEffect(() => {
     const loadData = async () => {
@@ -62,9 +79,54 @@ export default function ProgressTrackerApp() {
       } catch (error) {
         console.log('Starting fresh', error)
       }
+      finally {
+        setInitialLoadDone(true)
+      }
     }
     loadData()
   }, [])
+
+  // If admin has saved default/completed flags on milestones (e.g. milestone.completed === true),
+  // merge those into the per-user `progress` state on load — but do not overwrite any local progress
+  // the user has already set (local wins).
+  useEffect(() => {
+    if (!initialLoadDone) return
+    if (!content || !Array.isArray(content.progressTracker)) return
+
+    setProgress(prev => {
+      try {
+        const adminPhases = content.progressTracker || []
+        const merged = { ...prev }
+        let changed = false
+
+        for (const phase of adminPhases) {
+          const phaseId = phase && phase.id
+          if (!phase || !phaseId) continue
+          const ms = phase.milestones || []
+          for (const m of ms) {
+            const key = `${phaseId}-${m.id}`
+            const isAdminCompleted = m && (
+              m.completed === true || m.completed === 'true' ||
+              m.completedByAdmin === true || m.completedByAdmin === 'true'
+            )
+            if (isAdminCompleted && !(key in merged)) {
+              merged[key] = true
+              changed = true
+            }
+          }
+        }
+
+        if (changed) {
+          // Persist merged defaults so incognito viewers see the admin defaults for the session
+          try { storageWrapper.set('ai-progress', JSON.stringify(merged)) } catch (e) {}
+          return merged
+        }
+      } catch (e) {
+        // ignore
+      }
+      return prev
+    })
+  }, [content, initialLoadDone])
 
   const saveProgress = async (newProgress) => {
     setProgress(newProgress)
@@ -146,7 +208,6 @@ export default function ProgressTrackerApp() {
   ]
 
   // Prefer admin-provided content.progressTracker when available
-  const { content } = useContent()
   const displayedPhases = (content && Array.isArray(content.progressTracker) && content.progressTracker.length)
     ? content.progressTracker.map(p => ({ ...p, milestones: p.milestones || [] }))
     : phases
@@ -160,10 +221,51 @@ export default function ProgressTrackerApp() {
 
   // Toggle completion (kept as a separate control inside the milestone)
   const toggleCompletion = (phaseId, milestoneId) => {
-    const newProgress = { ...progress }
     const key = `${phaseId}-${milestoneId}`
-    newProgress[key] = !newProgress[key]
+
+    // Immediate local toggle for responsiveness
+    const newProgress = { ...progress, [key]: !progress[key] }
     saveProgress(newProgress)
+
+    // If admin is logged in, persist the admin-default on the backend
+    try {
+      const token = localStorage.getItem('admin_token')
+      if (token && content && Array.isArray(content.progressTracker)) {
+        // Build updated progressTracker payload
+        const updated = (content.progressTracker || []).map(p => {
+          if (p.id !== phaseId) return p
+          return {
+            ...p,
+            milestones: (p.milestones || []).map(m => {
+              if (m.id !== milestoneId) return m
+              // Toggle admin flag `completedByAdmin` (coerce to boolean)
+              const currently = m.completedByAdmin === true || m.completedByAdmin === 'true'
+              return { ...m, completedByAdmin: !currently }
+            })
+          }
+        })
+
+        // Fire-and-forget update; updateKey will refresh content on success
+        updateKey('progressTracker', updated, token).then(res => {
+          // If update failed, surface helpful feedback for admin users
+          if (!res || !res.success) {
+            console.warn('Failed to persist admin completion', res?.error)
+            const status = res?.error?.response?.status
+            if (status === 401) {
+              // Friendly guidance so admins know to (re)enter token
+              window.alert('Admin update unauthorized. Please open the Admin panel and re-enter your admin token.')
+            }
+          }
+        }).catch(err => {
+          console.error('Failed to persist admin completion', err)
+          if (err?.response?.status === 401) {
+            window.alert('Admin update unauthorized. Please open the Admin panel and re-enter your admin token.')
+          }
+        })
+      }
+    } catch (e) {
+      console.warn('Error persisting admin completion', e)
+    }
   }
 
   const addDailyLog = async () => {
@@ -397,9 +499,11 @@ export default function ProgressTrackerApp() {
                           >
                             <div className="flex items-start gap-3">
                               <button
-                                onClick={(e) => { e.stopPropagation(); toggleCompletion(phase.id, milestone.id) }}
-                                className="flex-shrink-0 mt-0.5"
+                                onClick={(e) => { e.stopPropagation(); if (isAdmin) toggleCompletion(phase.id, milestone.id) }}
+                                className={`flex-shrink-0 mt-0.5 ${!isAdmin ? 'opacity-40 cursor-not-allowed' : ''}`}
                                 aria-label={isCompleted ? 'Mark incomplete' : 'Mark complete'}
+                                disabled={!isAdmin}
+                                title={!isAdmin ? 'Admin only' : undefined}
                               >
                                 {isCompleted ? (
                                   <CheckCircle2 className="w-6 h-6 text-green-400" />
@@ -476,6 +580,7 @@ export default function ProgressTrackerApp() {
                     onChange={(e) => setNewLog({...newLog, hours: e.target.value})}
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                     placeholder="3.5"
+                    disabled={!isAdmin}
                   />
                 </div>
 
@@ -487,6 +592,7 @@ export default function ProgressTrackerApp() {
                     onChange={(e) => setNewLog({...newLog, activity: e.target.value})}
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
                     placeholder="Completed linear algebra course"
+                    disabled={!isAdmin}
                   />
                 </div>
 
@@ -497,14 +603,17 @@ export default function ProgressTrackerApp() {
                     onChange={(e) => setNewLog({...newLog, notes: e.target.value})}
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 h-20 resize-none"
                     placeholder="Key learnings or challenges..."
+                    disabled={!isAdmin}
                   />
                 </div>
 
                 <button
                   onClick={addDailyLog}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg px-4 py-2 font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
+                  className={`w-full ${isAdmin ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700' : 'bg-slate-700/40 cursor-not-allowed'} text-white rounded-lg px-4 py-2 font-medium transition-all`}
+                  disabled={!isAdmin}
+                  title={!isAdmin ? 'Admin only' : undefined}
                 >
-                  Add Log Entry
+                  {isAdmin ? 'Add Log Entry' : 'Admin only'}
                 </button>
               </div>
             </div>
