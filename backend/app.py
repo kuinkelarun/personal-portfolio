@@ -14,11 +14,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuration
+CERTAIN_FRONTEND = "https://personal-portfolio-gi3k01w6m-kuinkelaruns-projects.vercel.app"
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
-FRONTEND_URL = os.getenv("FRONTEND_URL")
+# Prefer an explicit env var, otherwise fall back to the known frontend URL for your deployment
+FRONTEND_URL = os.getenv("FRONTEND_URL", CERTAIN_FRONTEND)
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS")
 RATE_LIMIT = os.getenv("RATE_LIMIT", "5/minute")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///messages.db")
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "admin")
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
@@ -380,7 +383,8 @@ def stats():
 
 # --- Content API ---
 def _is_admin(request):
-    admin_token = os.getenv("ADMIN_TOKEN", "dev-token")
+    # Use the module-level ADMIN_TOKEN (read from env at startup)
+    admin_token = ADMIN_TOKEN
     # Header `X-ADMIN-TOKEN` or query param `admin_token`
     provided = request.headers.get("X-ADMIN-TOKEN") or request.args.get("admin_token")
     return provided and provided == admin_token
