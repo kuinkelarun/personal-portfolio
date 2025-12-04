@@ -271,38 +271,38 @@ def health():
 
 @app.get("/")
 def index_root():
-        """Landing for the backend service. Redirect to frontend if available."""
-        try:
-                if FRONTEND_URL:
-                        return redirect(FRONTEND_URL)
-        except Exception:
-                pass
-        html = """
-        <!doctype html>
-        <html>
-            <head><meta charset='utf-8'><title>Backend</title></head>
-            <body style='font-family:system-ui,Segoe UI,Roboto,Arial;padding:24px'>
-                <h1>Backend Service</h1>
-                <p>This is the API backend for your personal portfolio.</p>
-                <ul>
-                    <li><a href="/api/health">/api/health</a></li>
-                    <li><a href="/api/projects">/api/projects</a></li>
-                    <li><a href="/api/content">/api/content</a></li>
-                </ul>
-            </body>
-        </html>
-        """
-        return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+    """Landing for the backend service. Redirect to frontend if available."""
+    try:
+        if FRONTEND_URL:
+            return redirect(FRONTEND_URL)
+    except Exception:
+        pass
+    html = """
+<!doctype html>
+<html>
+  <head><meta charset='utf-8'><title>Backend</title></head>
+  <body style='font-family:system-ui,Segoe UI,Roboto,Arial;padding:24px'>
+    <h1>Backend Service</h1>
+    <p>This is the API backend for your personal portfolio.</p>
+    <ul>
+      <li><a href="/api/health">/api/health</a></li>
+      <li><a href="/api/projects">/api/projects</a></li>
+      <li><a href="/api/content">/api/content</a></li>
+    </ul>
+  </body>
+</html>
+"""
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
-    @app.get('/api/routes')
-    def list_routes():
-        """Debug endpoint: list all registered Flask routes."""
-        try:
-            rules = sorted({str(rule) for rule in app.url_map.iter_rules()})
-            return jsonify({'routes': rules})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+@app.get('/api/routes')
+def list_routes():
+    """Debug endpoint: list all registered Flask routes."""
+    try:
+        rules = sorted([str(rule) for rule in app.url_map.iter_rules()])
+        return jsonify({'routes': rules})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.get("/api/projects")
