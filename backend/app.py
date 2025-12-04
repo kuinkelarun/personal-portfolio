@@ -295,6 +295,16 @@ def index_root():
         return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
+    @app.get('/api/routes')
+    def list_routes():
+        """Debug endpoint: list all registered Flask routes."""
+        try:
+            rules = sorted({str(rule) for rule in app.url_map.iter_rules()})
+            return jsonify({'routes': rules})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+
 @app.get("/api/projects")
 def get_projects():
     # Prefer projects stored in content table so admin edits are reflected.
