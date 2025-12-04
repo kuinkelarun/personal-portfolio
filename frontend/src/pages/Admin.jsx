@@ -112,6 +112,28 @@ export default function Admin() {
     setTimeout(() => setMessage({ type: '', text: '' }), 4000)
   }
 
+  // If an admin token is provided via URL query (e.g. ?admin_token=...), apply it for this origin.
+  // This helps when you open the site under a different host (127.0.0.1 vs localhost).
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const t = params.get('admin_token') || params.get('token')
+      if (t) {
+        localStorage.setItem('admin_token', t)
+        setToken(t)
+        setUnlocked(true)
+        showMessage('success', 'Admin token applied from URL for this origin')
+        // Remove token from URL to avoid leaking in history
+        try {
+          const u = new URL(window.location.href)
+          u.searchParams.delete('admin_token')
+          u.searchParams.delete('token')
+          window.history.replaceState(null, '', u.pathname + u.search + u.hash)
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }, [])
+
   async function saveSection(section) {
     setSaving(true)
     setMessage({ type: '', text: '' })
