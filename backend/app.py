@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuration
-CERTAIN_FRONTEND = "https://personal-portfolio-gi3k01w6m-kuinkelaruns-projects.vercel.app"
+CERTAIN_FRONTEND = "https://personal-portfolio-ten-phi-73.vercel.app"
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 # Prefer an explicit env var, otherwise fall back to the known frontend URL for your deployment
 FRONTEND_URL = os.getenv("FRONTEND_URL", CERTAIN_FRONTEND)
