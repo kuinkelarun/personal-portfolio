@@ -1,14 +1,17 @@
-# Personal Portfolio – React + Flask on Render
+# Personal Portfolio – React + Flask on Vercel & Render
 
-A modern, responsive personal portfolio built with React (Vite + Tailwind CSS) and Flask, deployable on Render using two services: a Python Web Service for the API backend and a Static Site for the frontend.
+A modern, responsive personal portfolio built with React (Vite + Tailwind CSS) and Flask, deployed on Vercel (frontend) and Render (backend).
+
+**Live Site:** [https://personal-portfolio-ten-phi-73.vercel.app/](https://personal-portfolio-ten-phi-73.vercel.app/)
 
 ## Features
 - React 18 + Vite + Tailwind CSS, responsive and fast
 - Sections: Home, Experience, Projects (from API), About/Skills, Contact (POST to API)
 - Flask backend with REST APIs, CORS, rate-limited contact endpoint, SQLite (optional) for messages
-- Environment variables for secrets and config (locally via .env, on Render via dashboard)
+- Environment variables for secrets and config (locally via .env, on Vercel/Render via dashboard)
 - SEO basics: meta tags, robots.txt, sitemap.xml
-- Ready-to-deploy Render blueprint (render.yaml) for both services
+- Admin panel for content management
+- Ready-to-deploy on Vercel (frontend) and Render (backend)
 
 ## Directory Structure
 
@@ -111,46 +114,45 @@ The app will be at the URL printed in the terminal (default http://localhost:517
 }
 ```
 
-## Deployment on Render
+## Deployment
 
-You can use the provided `render.yaml` blueprint to set up both services, or create them manually in the dashboard.
-
-### Option A: Render Blueprint (recommended)
+### Frontend on Vercel
 1. Push this repository to GitHub.
-2. In Render, create a New Blueprint and point to your repo. It will detect `render.yaml` and propose two services.
-3. After creation, go to the frontend Static Site’s Environment tab and set `VITE_API_BASE_URL` to your backend’s public URL (e.g., `https://portfolio-backend.onrender.com`). Redeploy the static site.
-4. In the backend Web Service, set environment variables in the dashboard (see below) and deploy.
+2. In Vercel, create a New Project and point to your repo, selecting the `frontend/` folder as the root directory.
+3. Build settings:
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+4. Environment Variables (Production):
+   - `VITE_API_BASE_URL=https://your-backend.railway.app` (replace with your Railway backend URL)
+5. Deploy. The site will be available at a Vercel domain (e.g., `https://personal-portfolio-ten-phi-73.vercel.app`).
 
-### Option B: Manual setup in Render
-- Backend (Web Service)
-  - Build Command: `pip install -r requirements.txt`
-  - Start Command: `gunicorn app:app`
-  - Python runtime will be auto-detected from `requirements.txt`
-- Frontend (Static Site)
-  - Build Command: `npm ci && npm run build`
-  - Publish Directory: `dist`
-  - Set env `VITE_API_BASE_URL` to backend URL
+### Backend on Railway (Recommended for Reliability)
+Railway offers persistent apps with no inactivity sleep on their free tier (with $5 trial credits).
 
-### Environment Variables
-Set these in the Render dashboard for each service.
-
-Backend (Web Service):
-- `FLASK_ENV=production`
-- `SECRET_KEY=your_secret_key_here`
-- `FRONTEND_URL=https://arunkuinkel.onrender.com` (or your domain)
-- `CORS_ALLOWED_ORIGINS=https://arunkuinkel.onrender.com` (comma-separated if multiple)
-- `RATE_LIMIT=5/minute` (tune as needed)
-
-Frontend (Static Site):
-- `VITE_API_BASE_URL=https://portfolio-backend.onrender.com`
+1. Sign up at [railway.app](https://railway.app) and connect your GitHub account.
+2. Create a New Project → Deploy from GitHub Repo → Select your repo.
+3. Configure:
+   - Root Directory: `backend`
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `gunicorn --bind 0.0.0.0:$PORT --workers 2 app:app`
+4. Environment Variables:
+   - `FLASK_ENV=production`
+   - `SECRET_KEY=your_secret_key_here`
+   - `FRONTEND_URL=https://personal-portfolio-ten-phi-73.vercel.app` (your Vercel domain)
+   - `CORS_ALLOWED_ORIGINS=https://personal-portfolio-ten-phi-73.vercel.app`
+   - `RATE_LIMIT=5/minute`
+   - `ADMIN_TOKEN=your_secure_admin_token`
+5. Deploy. The API will be available at a Railway domain (e.g., `https://your-app.up.railway.app`).
 
 ## Notes & Best Practices
-- HTTPS: Render provides it automatically for custom domains.
-- CORS: Locked to your frontend domain via env variables.
+- HTTPS: Vercel and Render provide it automatically for custom domains.
+- CORS: Locked to your frontend domain via env variables on the backend.
 - Secrets: Use environment variables; do not commit secrets.
 - Rate limiting: Contact endpoint is limited by IP to reduce abuse.
 - SQLite storage on Render free tier is ephemeral; add a persistent disk for durability or switch to a managed DB if needed.
 - SEO: Update `public/sitemap.xml` and `public/robots.txt` with your domain.
+- Admin Access: Use `/admin` on the frontend with the `ADMIN_TOKEN` set in the backend.
+- Backup: Use the `/api/admin/download-db` endpoint to backup SQLite data.
 
 ## License
 MIT (adjust as desired)
