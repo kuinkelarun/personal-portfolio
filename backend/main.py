@@ -69,36 +69,88 @@ def _force_cors_headers(response):
         pass
     return response
 
-# --- SQLite helpers ---
+# --- Database helpers (SQLAlchemy if available, otherwise fallback SQLite) ---
+USE_DB_MODULE = False
+try:
+    from .db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, get_all_messages as db_get_all_messages, insert_message as db_insert_message, count_messages as db_count_messages, DB_PATH as DB_PATH
+    USE_DB_MODULE = True
+except Exception:
+    try:
+        from db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, DB_PATH as DB_PATH
+        USE_DB_MODULE = True
+    except Exception:
+        USE_DB_MODULE = False
 
-def _db_path_from_url(url: str) -> str:
-    # Expecting sqlite:///path pattern
-    if url.startswith("sqlite:///"):
-        return url.replace("sqlite:///", "")
-    # default to a local file name
-    return "messages.db"
+if USE_DB_MODULE:
+    def init_db():
+        return db_init()
 
-DB_PATH = _db_path_from_url(DATABASE_URL)
+    def _get_content(key: str):
+        return db_get_content(key)
 
+    def _set_content(key: str, value):
+        return db_set_content(key, value)
 
-def init_db():
-    os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT NOT NULL,
-                message TEXT NOT NULL,
-                ip TEXT,
-                created_at TEXT NOT NULL
+    def _get_all_content():
+        return db_get_all_content()
+
+else:
+    def _db_path_from_url(url: str) -> str:
+        if url.startswith("sqlite:///"):
+            return url.replace("sqlite:///, "")
+        return "messages.db"
+
+    DB_PATH = _db_path_from_url(DATABASE_URL)
+
+    def init_db():
+        os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
+        with sqlite3.connect(DB_PATH) as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    ip TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
             )
-            """
-        )
-        conn.commit()
+            conn.commit()
 
+    def _get_content(key: str):
+        with sqlite3.connect(DB_PATH) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT value FROM content WHERE key = ?", (key,))
+            row = cur.fetchone()
+            if not row:
+                return None
+            try:
+                return json.loads(row[0])
+            except Exception:
+                return row[0]
+
+    def _set_content(key: str, value):
+        text = json.dumps(value)
+        with sqlite3.connect(DB_PATH) as conn:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO content(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, text))
+            conn.commit()
+
+    def _get_all_content():
+        with sqlite3.connect(DB_PATH) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT key, value FROM content")
+            rows = cur.fetchall()
+        data = {}
+        for k, v in rows:
+            try:
+                data[k] = json.loads(v)
+            except Exception:
+                data[k] = v
+        return data
 
 init_db()
 
@@ -365,13 +417,16 @@ def contact():
     created_at = datetime.utcnow().isoformat()
 
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cur = conn.cursor()
-            cur.execute(
-                "INSERT INTO messages (name, email, message, ip, created_at) VALUES (?, ?, ?, ?, ?)",
-                (name, email, message, ip, created_at),
-            )
-            conn.commit()
+        if USE_DB_MODULE:
+            db_insert_message(name, email, message, ip, created_at)
+        else:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO messages (name, email, message, ip, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (name, email, message, ip, created_at),
+                )
+                conn.commit()
     except Exception as e:
         # On Render free tier, FS can be ephemeral. Log error but do not leak internals.
         return jsonify({"success": False, "message": "Unable to store message right now."}), 503
@@ -383,10 +438,13 @@ def contact():
 def stats():
     # Example stats endpoint
     try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT COUNT(*) FROM messages")
-            (count,) = cur.fetchone()
+        if USE_DB_MODULE:
+            count = db_count_messages()
+        else:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*) FROM messages")
+                (count,) = cur.fetchone()
     except Exception:
         count = 0
     return jsonify({
@@ -406,18 +464,11 @@ def _is_admin(request):
 
 @app.get('/api/content')
 def get_all_content():
-    # Return all content keys
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT key, value FROM content")
-        rows = cur.fetchall()
-    data = {}
-    for k, v in rows:
-        try:
-            data[k] = json.loads(v)
-        except Exception:
-            data[k] = v
-    return jsonify(data)
+    try:
+        data = _get_all_content()
+        return jsonify(data)
+    except Exception:
+        return jsonify({}), 500
 
 
 @app.get('/api/content/<key>')
@@ -449,35 +500,46 @@ def admin_export():
         return jsonify({"error": "unauthorized"}), 401
     data = {}
     # Export content table
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT key, value FROM content")
-            rows = cur.fetchall()
-        content = {}
-        for k, v in rows:
-            try:
-                content[k] = json.loads(v)
-            except Exception:
-                content[k] = v
-        data['content'] = content
-    except Exception:
-        data['content'] = {}
+    # Export content and messages using DB module when available
+    if USE_DB_MODULE:
+        try:
+            data['content'] = _get_all_content() or {}
+        except Exception:
+            data['content'] = {}
+        try:
+            data['messages'] = db_get_all_messages() or []
+        except Exception:
+            data['messages'] = []
+    else:
+        # Fallback to sqlite-based export
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT key, value FROM content")
+                rows = cur.fetchall()
+            content = {}
+            for k, v in rows:
+                try:
+                    content[k] = json.loads(v)
+                except Exception:
+                    content[k] = v
+            data['content'] = content
+        except Exception:
+            data['content'] = {}
 
-    # Export messages table
-    try:
-        with sqlite3.connect(DB_PATH) as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT id, name, email, message, ip, created_at FROM messages")
-            rows = cur.fetchall()
-        messages = []
-        for r in rows:
-            messages.append({
-                'id': r[0], 'name': r[1], 'email': r[2], 'message': r[3], 'ip': r[4], 'created_at': r[5]
-            })
-        data['messages'] = messages
-    except Exception:
-        data['messages'] = []
+        try:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT id, name, email, message, ip, created_at FROM messages")
+                rows = cur.fetchall()
+            messages = []
+            for r in rows:
+                messages.append({
+                    'id': r[0], 'name': r[1], 'email': r[2], 'message': r[3], 'ip': r[4], 'created_at': r[5]
+                })
+            data['messages'] = messages
+        except Exception:
+            data['messages'] = []
 
     return jsonify(data)
 
@@ -487,6 +549,8 @@ def admin_download_db():
     # Return the raw SQLite DB file as an attachment (admin-only)
     if not _is_admin(request):
         return jsonify({"error": "unauthorized"}), 401
+    if USE_DB_MODULE:
+        return jsonify({"error": "download not available for Postgres; use /api/admin/export"}), 400
     db_path = Path(DB_PATH)
     if not db_path.exists():
         return jsonify({"error": "db not found"}), 404
