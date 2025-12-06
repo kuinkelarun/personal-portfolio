@@ -272,6 +272,21 @@ def health():
     return jsonify({"status": "ok"})
 
 
+# Provide a favicon endpoint to avoid browsers requesting /favicon.ico from the API host
+# When users visit the backend root, browsers may try to fetch /favicon.ico which
+# previously returned 404. Redirect to the frontend favicon if a frontend URL is
+# configured so the request succeeds and avoids noisy 404s in logs.
+@app.get('/favicon.ico')
+def favicon():
+    try:
+        if FRONTEND_URL:
+            return redirect(f"{FRONTEND_URL.rstrip('/')}/favicon.svg")
+    except Exception:
+        pass
+    # Fallback: return 204 No Content so browsers stop requesting repeatedly
+    return ('', 204)
+
+
 @app.get("/")
 def index_root():
     """Landing for the backend service. Redirect to frontend if available."""
