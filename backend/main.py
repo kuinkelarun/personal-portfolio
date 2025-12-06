@@ -43,7 +43,7 @@ else:
 
 CORS(app, resources={r"/api/*": {"origins": cors_origins}}, supports_credentials=False)
 
-limiter = Limiter(get_remote_address, app=app, default_limits=[], storage="memory://")
+limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
 
 # Fallback: ensure CORS headers are present on all responses (helpful for local dev)
