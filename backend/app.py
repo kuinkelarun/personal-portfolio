@@ -358,6 +358,35 @@ def list_routes():
         return jsonify({'error': str(e)}), 500
 
 
+@app.post('/api/admin/test-write')
+def admin_test_write():
+    """Admin-only test: attempt to write a sample message and return detailed errors if any."""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        name = "__test__"
+        email = "test@example.com"
+        message = "Test write from admin_test_write"
+        ip = request.remote_addr or "127.0.0.1"
+        created_at = datetime.utcnow()
+        if USE_DB_MODULE:
+            mid = db_insert_message(name, email, message, ip, created_at)
+            return jsonify({"success": True, "id": mid})
+        else:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO messages (name, email, message, ip, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (name, email, message, ip, created_at),
+                )
+                conn.commit()
+                return jsonify({"success": True, "id": cur.lastrowid})
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return jsonify({"success": False, "error": str(e), "trace": tb}), 500
+
+
 @app.get("/api/projects")
 def get_projects():
     # Prefer projects stored in content table so admin edits are reflected.
