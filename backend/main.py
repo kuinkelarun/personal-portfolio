@@ -97,7 +97,7 @@ if USE_DB_MODULE:
 else:
     def _db_path_from_url(url: str) -> str:
         if url.startswith("sqlite:///"):
-            return url.replace("sqlite:///, "")
+            return url.replace("sqlite:///", "")
         return "messages.db"
 
     DB_PATH = _db_path_from_url(DATABASE_URL)
