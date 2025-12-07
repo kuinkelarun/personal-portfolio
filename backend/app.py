@@ -398,7 +398,7 @@ def contact():
     email = data["email"].strip()
     message = data["message"].strip()
     ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-    created_at = datetime.utcnow().isoformat()
+    created_at = datetime.utcnow()
 
     try:
         if USE_DB_MODULE:
