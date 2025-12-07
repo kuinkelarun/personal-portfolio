@@ -548,6 +548,25 @@ def admin_export():
     return jsonify(data)
 
 
+@app.get('/api/admin/debug')
+def admin_debug():
+    """Admin-only debug: report DB backend and sample content for troubleshooting."""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        info = {
+            'use_db_module': bool(USE_DB_MODULE),
+            'db_path': DB_PATH if 'DB_PATH' in globals() else None,
+        }
+        try:
+            info['about'] = _get_content('about')
+        except Exception as e:
+            info['about_error'] = str(e)
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.get('/api/admin/download-db')
 def admin_download_db():
     # Return the raw SQLite DB file as an attachment (admin-only)
