@@ -391,6 +391,46 @@ def admin_test_write():
         return jsonify({"success": False, "error": str(e), "trace": tb}), 500
 
 
+@app.get('/api/admin/db-info')
+def admin_db_info():
+    """Admin-only: report DB host/port/name and column defaults for `messages` table."""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        import importlib
+        dbmod = importlib.import_module('db')
+        info = {}
+        try:
+            url = dbmod.engine.url
+            info['host'] = getattr(url, 'host', None)
+            info['port'] = getattr(url, 'port', None)
+            info['database'] = getattr(url, 'database', None)
+            info['username'] = getattr(url, 'username', None)
+        except Exception as e:
+            info['url_error'] = str(e)
+
+        # Query information_schema for messages table columns
+        try:
+            from sqlalchemy import text
+            cols = []
+            with dbmod.engine.connect() as conn:
+                res = conn.execute(text("""
+                    SELECT column_name, column_default, is_nullable
+                    FROM information_schema.columns
+                    WHERE table_name = 'messages'
+                    ORDER BY ordinal_position
+                """))
+                for row in res:
+                    cols.append({'column': row[0], 'default': row[1], 'is_nullable': row[2]})
+            info['messages_columns'] = cols
+        except Exception as e:
+            info['messages_columns_error'] = str(e)
+
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.get("/api/projects")
 def get_projects():
     # Prefer projects stored in content table so admin edits are reflected.
