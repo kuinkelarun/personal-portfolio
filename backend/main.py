@@ -154,26 +154,6 @@ else:
 
 init_db()
 
-# --- Content storage helpers ---
-def _get_content(key: str):
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT value FROM content WHERE key = ?", (key,))
-        row = cur.fetchone()
-        if not row:
-            return None
-        try:
-            return json.loads(row[0])
-        except Exception:
-            return row[0]
-
-def _set_content(key: str, value):
-    text = json.dumps(value)
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.cursor()
-        cur.execute("INSERT INTO content(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, text))
-        conn.commit()
-
 # Initialize default content if missing
 def _ensure_default_content():
     defaults = {
