@@ -78,7 +78,7 @@ try:
 except Exception:
     # Try non-package import for different run contexts
     try:
-        from db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, DB_PATH as DB_PATH
+        from db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, get_all_messages as db_get_all_messages, insert_message as db_insert_message, count_messages as db_count_messages, DB_PATH as DB_PATH
         USE_DB_MODULE = True
     except Exception:
         USE_DB_MODULE = False
