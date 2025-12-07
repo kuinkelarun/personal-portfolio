@@ -147,12 +147,49 @@ Railway offers persistent apps with no inactivity sleep on their free tier (with
 ## Notes & Best Practices
 - HTTPS: Vercel and Render provide it automatically for custom domains.
 - CORS: Locked to your frontend domain via env variables on the backend.
-- Secrets: Use environment variables; do not commit secrets.
-- Rate limiting: Contact endpoint is limited by IP to reduce abuse.
-- SQLite storage on Render free tier is ephemeral; add a persistent disk for durability or switch to a managed DB if needed.
-- SEO: Update `public/sitemap.xml` and `public/robots.txt` with your domain.
-- Admin Access: Use `/admin` on the frontend with the `ADMIN_TOKEN` set in the backend.
-- Backup: Use the `/api/admin/download-db` endpoint to backup SQLite data.
+# Personal Portfolio
 
-## License
-MIT (adjust as desired)
+Concise notes about this project: a Vite + React frontend with a Flask backend and persistent database.
+
+Tech Summary
+- Frontend: React (Vite), Tailwind CSS, Axios — built with `npm run build` and deployed to Vercel.
+- Backend: Flask REST API, CORS, admin endpoints — runs under Gunicorn in production.
+- Database: PostgreSQL (Railway) in production via SQLAlchemy; SQLite fallback for local development.
+
+Quick Local Dev
+- Backend (PowerShell):
+  ```pwsh
+  cd backend
+  python -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+  pip install -r requirements.txt
+  Copy-Item .env.example .env
+  $env:FLASK_APP='main.py'; $env:FLASK_ENV='development'; flask run --port 5000
+  ```
+- Frontend (PowerShell):
+  ```pwsh
+  cd frontend
+  npm install
+  Copy-Item .env.example .env
+  npm run dev
+  ```
+
+Important Endpoints
+- GET `/api/content` — returns all site content (used by frontend)
+- PUT `/api/content/<key>` — admin-protected update of a content key (requires `X-ADMIN-TOKEN`)
+- POST `/api/contact` — contact form submissions
+- GET `/api/admin/debug` — admin-only debug info (reports DB backend and sample content)
+
+Deployment Notes
+- Frontend: point Vercel to the `frontend/` folder; set `VITE_API_BASE_URL` to your backend URL in Vercel env vars.
+- Backend: deploy `backend/` to Railway (or similar). Ensure `DATABASE_URL` points to a managed Postgres and `ADMIN_TOKEN` is set.
+- Use SQLAlchemy (in `backend/db.py`) so production writes go to Postgres; SQLite used only when `DATABASE_URL` is local.
+
+Environment Variables (important)
+- `DATABASE_URL` — e.g. `postgres://user:pass@host:5432/dbname`
+- `ADMIN_TOKEN` — token required for admin writes
+- `FRONTEND_URL` / `CORS_ALLOWED_ORIGINS` — allowed origins for CORS
+
+If you need a longer dev or deployment walkthrough, tell me which area to expand (frontend, backend, or DB migration).
+
+License: MIT
