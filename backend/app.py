@@ -370,7 +370,16 @@ def admin_test_write():
         ip = request.remote_addr or "127.0.0.1"
         created_at = datetime.utcnow()
         if USE_DB_MODULE:
-            mid = db_insert_message(name, email, message, ip, created_at)
+            try:
+                mid = db_insert_message(name, email, message, ip, created_at)
+            except NameError:
+                # Fallback: import the db module at runtime and call insert_message
+                try:
+                    import importlib
+                    dbmod = importlib.import_module('db')
+                    mid = dbmod.insert_message(name, email, message, ip, created_at)
+                except Exception:
+                    raise
             return jsonify({"success": True, "id": mid})
         else:
             with sqlite3.connect(DB_PATH) as conn:
