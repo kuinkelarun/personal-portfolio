@@ -436,6 +436,43 @@ def admin_db_info():
         return jsonify({'error': str(e)}), 500
 
 
+@app.get('/api/admin/db-schema')
+def admin_db_schema():
+    """Admin-only: show current search_path, current_schema and list messages table columns per schema."""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        import importlib
+        dbmod = importlib.import_module('db')
+        info = {}
+        try:
+            with dbmod.engine.connect() as conn:
+                # current schema and search_path
+                res = conn.execute("SELECT current_schema(), current_setting('search_path')")
+                row = res.fetchone()
+                info['current_schema'] = row[0]
+                info['search_path'] = row[1]
+
+                # list all schemas that have a messages table and their column defaults
+                from sqlalchemy import text
+                q = text("""
+                    SELECT table_schema, column_name, column_default, is_nullable
+                    FROM information_schema.columns
+                    WHERE table_name = 'messages'
+                    ORDER BY table_schema, ordinal_position
+                """)
+                cols = []
+                res2 = conn.execute(q)
+                for r in res2:
+                    cols.append({'schema': r[0], 'column': r[1], 'default': r[2], 'is_nullable': r[3]})
+                info['messages_columns_by_schema'] = cols
+        except Exception as e:
+            info['error'] = str(e)
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.get("/api/projects")
 def get_projects():
     # Prefer projects stored in content table so admin edits are reflected.
