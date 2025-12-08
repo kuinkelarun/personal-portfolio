@@ -474,6 +474,29 @@ def admin_db_schema():
         return jsonify({'error': str(e)}), 500
 
 
+@app.post('/api/admin/db-reload')
+def admin_db_reload():
+    """Admin-only: dispose SQLAlchemy engine pools so new connections pick up schema changes."""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        import importlib
+        dbmod = importlib.import_module('db')
+        try:
+            # Dispose engine pools
+            dbmod.engine.dispose()
+            # Optionally ensure tables exist
+            try:
+                dbmod.init_db()
+            except Exception:
+                pass
+            return jsonify({"success": True, "message": "engine disposed"})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.get("/api/projects")
 def get_projects():
     # Prefer projects stored in content table so admin edits are reflected.
