@@ -448,7 +448,8 @@ def admin_db_schema():
         try:
             with dbmod.engine.connect() as conn:
                 # current schema and search_path
-                res = conn.execute("SELECT current_schema(), current_setting('search_path')")
+                # use exec_driver_sql for plain SQL in SQLAlchemy 2.x
+                res = conn.exec_driver_sql("SELECT current_schema(), current_setting('search_path')")
                 row = res.fetchone()
                 info['current_schema'] = row[0]
                 info['search_path'] = row[1]
