@@ -22,8 +22,6 @@ CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS")
 RATE_LIMIT = os.getenv("RATE_LIMIT", "5/minute")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///messages.db")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "admin")
-# Gate admin/debug endpoints. Set this env var to '1' or 'true' to enable them in production for troubleshooting.
-ENABLE_ADMIN_DEBUG = os.getenv("ENABLE_ADMIN_DEBUG", "0").lower() in ("1", "true", "yes")
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
@@ -45,7 +43,7 @@ else:
 
 CORS(app, resources={r"/api/*": {"origins": cors_origins}}, supports_credentials=False)
 
-limiter = Limiter(get_remote_address, app=app, default_limits=[])
+limiter = Limiter(get_remote_address, app=app, default_limits=[], storage="memory://")
 
 
 # Fallback: ensure CORS headers are present on all responses (helpful for local dev)
@@ -71,12 +69,14 @@ def _force_cors_headers(response):
         pass
     return response
 
+
 # --- Database helpers (SQLAlchemy if available, otherwise fallback SQLite) ---
 USE_DB_MODULE = False
 try:
     from .db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, get_all_messages as db_get_all_messages, insert_message as db_insert_message, count_messages as db_count_messages, DB_PATH as DB_PATH
     USE_DB_MODULE = True
 except Exception:
+    # Try non-package import for different run contexts
     try:
         from db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, get_all_messages as db_get_all_messages, insert_message as db_insert_message, count_messages as db_count_messages, DB_PATH as DB_PATH
         USE_DB_MODULE = True
@@ -97,9 +97,10 @@ if USE_DB_MODULE:
         return db_get_all_content()
 
 else:
+    # Fallback to original sqlite helpers
     def _db_path_from_url(url: str) -> str:
         if url.startswith("sqlite:///"):
-            return url.replace("sqlite:///", "")
+            return url.replace('sqlite:///', '')
         return "messages.db"
 
     DB_PATH = _db_path_from_url(DATABASE_URL)
@@ -160,7 +161,7 @@ init_db()
 def _ensure_default_content():
     defaults = {
         "about": {
-            "name": "Your Name",
+            "name": "Arun Kuinkel",
             "headline": "Hi, I'm",
             "tagline": "Full-Stack Developer | Software Engineer | Tech Enthusiast",
             "summary": "Building modern web applications with clean code and elegant design. Passionate about creating user-friendly experiences that make a difference.",
@@ -215,8 +216,8 @@ def _ensure_default_content():
         )
         conn.commit()
     for k, v in defaults.items():
-        if _get_content(k) is None:
-            _set_content(k, v)
+            if _get_content(k) is None:
+                _set_content(k, v)
 
 
 _ensure_default_content()
@@ -251,7 +252,7 @@ PROJECTS = [
     {
         "id": 1,
         "title": "Gun Death Analysis",
-        "description": "The notebook analyzes a comprehensive, 2012–2014 U.S. gun-death dataset (originally drawn from the CDC’s Multiple Cause of Death database via FiveThirtyEight) to identify which demographic and situational factors are most predictive of a fatality being classified as a suicide versus another intent (homicide, accident, etc.). After cleaning and encoding features like age, gender, race, place of death and education level, the team fits and compares several supervised classifiers—most notably regularized logistic regression, random forest and gradient-boosted decision trees—using cross-validation. Models are evaluated with ROC-AUC, precision/recall and confusion matrices, and feature importances or regression coefficients are examined to surface the strongest predictors of suicide.",
+        "description": "The notebook analyzes a comprehensive, 2012–2014 U.S. gun-death dataset (originally drawn from the CDC’s Multiple Cause of Death database via FiveThirtyEight) to identify which demographic and situational factors are most predictive of a fatality being classified as a suicide versus another intent (homicide, accident, etc.). After cleaning and encoding features like age, gender, place of death and education level, the team fits and compares several supervised classifiers—most notably regularized logistic regression, random forest and gradient-boosted decision trees—using cross-validation. Models are evaluated with ROC-AUC, precision/recall and confusion matrices, and feature importances or regression coefficients are examined to surface the strongest predictors of suicide.",
         "tags": ["Python", "Pandas", "scikit-learn", "ML"],
         "links": {
             "github": "https://github.com/kuinkelarun/Gun-Death-Analysis",
@@ -305,6 +306,7 @@ except Exception:
 def health():
     return jsonify({"status": "ok"})
 
+
 # Provide a favicon endpoint to avoid browsers requesting /favicon.ico from the API host
 # When users visit the backend root, browsers may try to fetch /favicon.ico which
 # previously returned 404. Redirect to the frontend favicon if a frontend URL is
@@ -356,193 +358,29 @@ def list_routes():
         return jsonify({'error': str(e)}), 500
 
 
-if ENABLE_ADMIN_DEBUG:
-    @app.post('/api/admin/test-write')
-    def admin_test_write():
-        """Admin-only test: attempt to write a sample message and return detailed errors if any."""
-        if not _is_admin(request):
-            return jsonify({"error": "unauthorized"}), 401
-        try:
-            name = "__test__"
-            email = "test@example.com"
-            message = "Test write from admin_test_write"
-            ip = request.remote_addr or "127.0.0.1"
-            created_at = datetime.utcnow()
-            if USE_DB_MODULE:
-                try:
-                    mid = db_insert_message(name, email, message, ip, created_at)
-                except NameError:
-                    try:
-                        import importlib
-                        dbmod = importlib.import_module('db')
-                        mid = dbmod.insert_message(name, email, message, ip, created_at)
-                    except Exception:
-                        raise
-                return jsonify({"success": True, "id": mid})
-            else:
-                with sqlite3.connect(DB_PATH) as conn:
-                    cur = conn.cursor()
-                    cur.execute(
-                        "INSERT INTO messages (name, email, message, ip, created_at) VALUES (?, ?, ?, ?, ?)",
-                        (name, email, message, ip, created_at),
-                    )
-                    conn.commit()
-                    return jsonify({"success": True, "id": cur.lastrowid})
-        except Exception as e:
-            import traceback
-            tb = traceback.format_exc()
-            return jsonify({"success": False, "error": str(e), "trace": tb}), 500
-
-
-if ENABLE_ADMIN_DEBUG:
-    @app.get('/api/admin/db-info')
-    def admin_db_info():
-        """Admin-only: report DB host/port/name and column defaults for `messages` table."""
-        if not _is_admin(request):
-            return jsonify({"error": "unauthorized"}), 401
-        try:
-            import importlib
-            dbmod = importlib.import_module('db')
-            info = {}
-            try:
-                url = dbmod.engine.url
-                info['host'] = getattr(url, 'host', None)
-                info['port'] = getattr(url, 'port', None)
-                info['database'] = getattr(url, 'database', None)
-                info['username'] = getattr(url, 'username', None)
-            except Exception as e:
-                info['url_error'] = str(e)
-
-            # Query information_schema for messages table columns
-            try:
-                from sqlalchemy import text
-                cols = []
-                with dbmod.engine.connect() as conn:
-                    res = conn.execute(text("""
-                        SELECT column_name, column_default, is_nullable
-                        FROM information_schema.columns
-                        WHERE table_name = 'messages'
-                        ORDER BY ordinal_position
-                    """))
-                    for row in res:
-                        cols.append({'column': row[0], 'default': row[1], 'is_nullable': row[2]})
-                info['messages_columns'] = cols
-            except Exception as e:
-                info['messages_columns_error'] = str(e)
-
-            return jsonify(info)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-
-if ENABLE_ADMIN_DEBUG:
-    @app.get('/api/admin/db-schema')
-    def admin_db_schema():
-        """Admin-only: show current search_path, current_schema and list messages table columns per schema."""
-        if not _is_admin(request):
-            return jsonify({"error": "unauthorized"}), 401
-        try:
-            import importlib
-            dbmod = importlib.import_module('db')
-            info = {}
-            try:
-                with dbmod.engine.connect() as conn:
-                    # current schema and search_path
-                    # use exec_driver_sql for plain SQL in SQLAlchemy 2.x
-                    res = conn.exec_driver_sql("SELECT current_schema(), current_setting('search_path')")
-                    row = res.fetchone()
-                    info['current_schema'] = row[0]
-                    info['search_path'] = row[1]
-
-                    # list all schemas that have a messages table and their column defaults
-                    from sqlalchemy import text
-                    q = text("""
-                        SELECT table_schema, column_name, column_default, is_nullable
-                        FROM information_schema.columns
-                        WHERE table_name = 'messages'
-                        ORDER BY table_schema, ordinal_position
-                    """)
-                    cols = []
-                    res2 = conn.execute(q)
-                    for r in res2:
-                        cols.append({'schema': r[0], 'column': r[1], 'default': r[2], 'is_nullable': r[3]})
-                    info['messages_columns_by_schema'] = cols
-            except Exception as e:
-                info['error'] = str(e)
-            return jsonify(info)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-
-if ENABLE_ADMIN_DEBUG:
-    @app.post('/api/admin/db-reload')
-    def admin_db_reload():
-        """Admin-only: dispose SQLAlchemy engine pools so new connections pick up schema changes."""
-        if not _is_admin(request):
-            return jsonify({"error": "unauthorized"}), 401
-        try:
-            import importlib
-            dbmod = importlib.import_module('db')
-            try:
-                # Dispose engine pools
-                dbmod.engine.dispose()
-                # Optionally ensure tables exist
-                try:
-                    dbmod.init_db()
-                except Exception:
-                    pass
-                return jsonify({"success": True, "message": "engine disposed"})
-            except Exception as e:
-                return jsonify({"success": False, "error": str(e)}), 500
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-
-@app.get("/api/projects")
-def get_projects():
-    # Prefer projects stored in content table so admin edits are reflected.
-    val = _get_content('projects')
-    if isinstance(val, list):
-        return jsonify(val)
-    return jsonify(PROJECTS)
-
-
-def _validate_contact(payload: dict):
-    errors = {}
-    name = (payload.get("name") or "").strip()
-    email = (payload.get("email") or "").strip()
-    message = (payload.get("message") or "").strip()
-
-    if not name or len(name) < 2:
-        errors["name"] = "Name is required and should be at least 2 characters."
-    if not email or "@" not in email:
-        errors["email"] = "A valid email is required."
-    if not message or len(message) < 10:
-        errors["message"] = "Message should be at least 10 characters."
-
-    return errors
-
-
-@app.post("/api/contact")
-@limiter.limit(RATE_LIMIT)
-def contact():
-    if not request.is_json:
-        return jsonify({"error": "Expected JSON body"}), 400
-
-    data = request.get_json(silent=True) or {}
-    errors = _validate_contact(data)
-    if errors:
-        return jsonify({"errors": errors}), 422
-
-    name = data["name"].strip()
-    email = data["email"].strip()
-    message = data["message"].strip()
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-    created_at = datetime.utcnow()
-
+@app.post('/api/admin/test-write')
+def admin_test_write():
+    """Admin-only test: attempt to write a sample message and return detailed errors if any."""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
     try:
+        name = "__test__"
+        email = "test@example.com"
+        message = "Test write from admin_test_write"
+        ip = request.remote_addr or "127.0.0.1"
+        created_at = datetime.utcnow()
         if USE_DB_MODULE:
-            db_insert_message(name, email, message, ip, created_at)
+            try:
+                mid = db_insert_message(name, email, message, ip, created_at)
+            except NameError:
+                # Fallback: import the db module at runtime and call insert_message
+                try:
+                    import importlib
+                    dbmod = importlib.import_module('db')
+                    mid = dbmod.insert_message(name, email, message, ip, created_at)
+                except Exception:
+                    raise
+            return jsonify({"success": True, "id": mid})
         else:
             with sqlite3.connect(DB_PATH) as conn:
                 cur = conn.cursor()
@@ -551,161 +389,120 @@ def contact():
                     (name, email, message, ip, created_at),
                 )
                 conn.commit()
+                return jsonify({"success": True, "id": cur.lastrowid})
     except Exception as e:
-        # On Render free tier, FS can be ephemeral. Log error but do not leak internals.
-        return jsonify({"success": False, "message": "Unable to store message right now."}), 503
-
-    return jsonify({"success": True})
-
-
-@app.get("/api/stats")
-def stats():
-    # Example stats endpoint
-    try:
-        if USE_DB_MODULE:
-            count = db_count_messages()
-        else:
-            with sqlite3.connect(DB_PATH) as conn:
-                cur = conn.cursor()
-                cur.execute("SELECT COUNT(*) FROM messages")
-                (count,) = cur.fetchone()
-    except Exception:
-        count = 0
-    return jsonify({
-        "project_count": len(PROJECTS),
-        "message_count": count,
-    })
+        import traceback
+        tb = traceback.format_exc()
+        return jsonify({"success": False, "error": str(e), "trace": tb}), 500
 
 
-# --- Content API ---
-def _is_admin(request):
-    # Use the module-level ADMIN_TOKEN (read from env at startup)
-    admin_token = ADMIN_TOKEN
-    # Header `X-ADMIN-TOKEN` or query param `admin_token`
-    provided = request.headers.get("X-ADMIN-TOKEN") or request.args.get("admin_token")
-    return provided and provided == admin_token
-
-
-@app.get('/api/content')
-def get_all_content():
-    try:
-        data = _get_all_content()
-        return jsonify(data)
-    except Exception:
-        return jsonify({}), 500
-
-
-@app.get('/api/content/<key>')
-def get_content(key):
-    val = _get_content(key)
-    if val is None:
-        return jsonify({"error": "not found"}), 404
-    return jsonify(val)
-
-
-@app.put('/api/content/<key>')
-def put_content(key):
+@app.get('/api/admin/db-info')
+def admin_db_info():
+    """Admin-only: report DB host/port/name and column defaults for `messages` table."""
     if not _is_admin(request):
         return jsonify({"error": "unauthorized"}), 401
-    if not request.is_json:
-        return jsonify({"error": "expected json body"}), 400
-    val = request.get_json()
     try:
-        _set_content(key, val)
-    except Exception as e:
-        return jsonify({"error": "failed to write content"}), 500
-    return jsonify({"success": True})
-
-
-# --- Admin export / DB download ---
-if ENABLE_ADMIN_DEBUG:
-    @app.get('/api/admin/export')
-    def admin_export():
-        if not _is_admin(request):
-            return jsonify({"error": "unauthorized"}), 401
-        data = {}
-        # Export content table
-        # Export content and messages using DB module when available
-        if USE_DB_MODULE:
-            try:
-                data['content'] = _get_all_content() or {}
-            except Exception:
-                data['content'] = {}
-            try:
-                data['messages'] = db_get_all_messages() or []
-            except Exception:
-                data['messages'] = []
-        else:
-            # Fallback to sqlite-based export
-            try:
-                with sqlite3.connect(DB_PATH) as conn:
-                    cur = conn.cursor()
-                    cur.execute("SELECT key, value FROM content")
-                    rows = cur.fetchall()
-                content = {}
-                for k, v in rows:
-                    try:
-                        content[k] = json.loads(v)
-                    except Exception:
-                        content[k] = v
-                data['content'] = content
-            except Exception:
-                data['content'] = {}
-
-            try:
-                with sqlite3.connect(DB_PATH) as conn:
-                    cur = conn.cursor()
-                    cur.execute("SELECT id, name, email, message, ip, created_at FROM messages")
-                    rows = cur.fetchall()
-                messages = []
-                for r in rows:
-                    messages.append({
-                        'id': r[0], 'name': r[1], 'email': r[2], 'message': r[3], 'ip': r[4], 'created_at': r[5]
-                    })
-                data['messages'] = messages
-            except Exception:
-                data['messages'] = []
-
-        return jsonify(data)
-
-
-if ENABLE_ADMIN_DEBUG:
-    @app.get('/api/admin/debug')
-    def admin_debug():
-        """Admin-only debug: report DB backend and sample content for troubleshooting."""
-        if not _is_admin(request):
-            return jsonify({"error": "unauthorized"}), 401
+        import importlib
+        dbmod = importlib.import_module('db')
+        info = {}
         try:
-            info = {
-                'use_db_module': bool(USE_DB_MODULE),
-                'db_path': DB_PATH if 'DB_PATH' in globals() else None,
-            }
-            try:
-                info['about'] = _get_content('about')
-            except Exception as e:
-                info['about_error'] = str(e)
-            return jsonify(info)
+            url = dbmod.engine.url
+            info['host'] = getattr(url, 'host', None)
+            info['port'] = getattr(url, 'port', None)
+            info['database'] = getattr(url, 'database', None)
+            info['username'] = getattr(url, 'username', None)
         except Exception as e:
-            return jsonify({'error': str(e)}), 500
+            info['url_error'] = str(e)
+
+        # Query information_schema for messages table columns
+        try:
+            from sqlalchemy import text
+            cols = []
+            with dbmod.engine.connect() as conn:
+                res = conn.execute(text("""
+                    SELECT column_name, column_default, is_nullable
+                    FROM information_schema.columns
+                    WHERE table_name = 'messages'
+                    ORDER BY ordinal_position
+                """))
+                for row in res:
+                    cols.append({'column': row[0], 'default': row[1], 'is_nullable': row[2]})
+            info['messages_columns'] = cols
+        except Exception as e:
+            info['messages_columns_error'] = str(e)
+
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
-if ENABLE_ADMIN_DEBUG:
-    @app.get('/api/admin/download-db')
-    def admin_download_db():
-        # Return the raw SQLite DB file as an attachment (admin-only)
-        if not _is_admin(request):
-            return jsonify({"error": "unauthorized"}), 401
-        if USE_DB_MODULE:
-            return jsonify({"error": "download not available for Postgres; use /api/admin/export"}), 400
-        db_path = Path(DB_PATH)
-        if not db_path.exists():
-            return jsonify({"error": "db not found"}), 404
-        # send_from_directory expects a directory and filename
-        return send_from_directory(directory=str(db_path.parent or '.'), path=db_path.name, as_attachment=True)
+@app.get('/api/admin/db-schema')
+def admin_db_schema():
+    """Admin-only: show current search_path, current_schema and list messages table columns per schema."""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        import importlib
+        dbmod = importlib.import_module('db')
+        info = {}
+        try:
+            with dbmod.engine.connect() as conn:
+                # current schema and search_path
+                # use exec_driver_sql for plain SQL in SQLAlchemy 2.x
+                res = conn.exec_driver_sql("SELECT current_schema(), current_setting('search_path')")
+                row = res.fetchone()
+                info['current_schema'] = row[0]
+                info['search_path'] = row[1]
+
+                # list all schemas that have a messages table and their column defaults
+                from sqlalchemy import text
+                q = text("""
+                    SELECT table_schema, column_name, column_default, is_nullable
+                    FROM information_schema.columns
+                    WHERE table_name = 'messages'
+                    ORDER BY table_schema, ordinal_position
+                """)
+                cols = []
+                res2 = conn.execute(q)
+                for r in res2:
+                    cols.append({'schema': r[0], 'column': r[1], 'default': r[2], 'is_nullable': r[3]})
+                info['messages_columns_by_schema'] = cols
+        except Exception as e:
+            info['error'] = str(e)
+        return jsonify(info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
-if __name__ == "__main__":
-    # For local debug only; in production use a WSGI server (gunicorn) or container
-    port = int(os.environ.get("PORT", 5000))
-    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
-    app.run(host="0.0.0.0", port=port, debug=debug)
+@app.post('/api/admin/db-reload')
+def admin_db_reload():
+    """Admin-only: dispose SQLAlchemy engine pools so new connections pick up schema changes."""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    try:
+        import importlib
+        dbmod = importlib.import_module('db')
+        try:
+            # Dispose engine pools
+            dbmod.engine.dispose()
+            # Optionally ensure tables exist
+            try:
+                dbmod.init_db()
+            except Exception:
+                pass
+            return jsonify({"success": True, "message": "engine disposed"})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.get('/api/projects')
+def get_projects():
+    # Prefer projects stored in content table so admin edits are reflected.
+    val = _get_content('projects')
+    if isinstance(val, list):
+        return jsonify(val)
+    return jsonify(PROJECTS)
+
+... (file continues)

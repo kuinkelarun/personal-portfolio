@@ -1,3 +1,12 @@
+"""
+This file has been archived and moved to `backend/archived/app.py`.
+The active WSGI entrypoint is `backend/main.py`.
+
+Kept as a stub to avoid accidental execution.
+"""
+
+ARCHIVED = True
+
 import os
 import sqlite3
 import json
