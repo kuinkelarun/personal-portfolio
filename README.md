@@ -1,17 +1,18 @@
-# Personal Portfolio – React + Flask on Vercel & Render
+# Personal Portfolio – React + Flask on Vercel & Railways
 
-A modern, responsive personal portfolio built with React (Vite + Tailwind CSS) and Flask, deployed on Vercel (frontend) and Render (backend).
+A modern, responsive personal portfolio built with React (Vite + Tailwind CSS) and Flask, deployed on Vercel (frontend) and Railways (backend).
 
-**Live Site:** [https://personal-portfolio-ten-phi-73.vercel.app/](https://personal-portfolio-ten-phi-73.vercel.app/)
+**Live Site:** [https://kuinkelarun-portfolio.vercel.app/](https://kuinkelarun-portfolio.vercel.app/)
 
 ## Features
 - React 18 + Vite + Tailwind CSS, responsive and fast
 - Sections: Home, Experience, Projects (from API), About/Skills, Contact (POST to API)
 - Flask backend with REST APIs, CORS, rate-limited contact endpoint, SQLite (optional) for messages
-- Environment variables for secrets and config (locally via .env, on Vercel/Render via dashboard)
+- Environment variables for secrets and config (locally via .env, on Vercel/Railways via dashboard)
 - SEO basics: meta tags, robots.txt, sitemap.xml
 - Admin panel for content management
-- Ready-to-deploy on Vercel (frontend) and Render (backend)
+- Ready-to-deploy on Vercel (frontend) and Railways (backend)
+- Use SQLAlchemy (in `backend/db.py`) so production writes go to Postgres; SQLite used only when `DATABASE_URL` is local.
 
 ## Directory Structure
 
@@ -46,7 +47,6 @@ portfolio-app/
       - Contact.jsx
     - data/
       - experience.js
-- render.yaml
 - README.md
 
 ## Local Development
@@ -138,14 +138,14 @@ Railway offers persistent apps with no inactivity sleep on their free tier (with
 4. Environment Variables:
    - `FLASK_ENV=production`
    - `SECRET_KEY=your_secret_key_here`
-   - `FRONTEND_URL=https://personal-portfolio-ten-phi-73.vercel.app` (your Vercel domain)
+   - `FRONTEND_URL=https://kuinkelarun-portfoliohello.vercel.app` (your Vercel domain)
    - `CORS_ALLOWED_ORIGINS=https://personal-portfolio-ten-phi-73.vercel.app`
    - `RATE_LIMIT=5/minute`
    - `ADMIN_TOKEN=your_secure_admin_token`
 5. Deploy. The API will be available at a Railway domain (e.g., `https://your-app.up.railway.app`).
 
 ## Notes & Best Practices
-- HTTPS: Vercel and Render provide it automatically for custom domains.
+- HTTPS: Vercel provide it automatically for custom domains.
 - CORS: Locked to your frontend domain via env variables on the backend.
 # Personal Portfolio
 
