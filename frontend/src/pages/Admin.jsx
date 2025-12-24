@@ -169,8 +169,32 @@ export default function Admin() {
           showMessage('success', 'Image uploaded successfully!')
           return url
         } else {
+          // Update local state
           updateSection(section, field, url)
           showMessage('success', 'Image uploaded successfully!')
+          
+          // Auto-save the section after upload
+          setTimeout(async () => {
+            setSaving(true)
+            try {
+              const updatedSection = {
+                ...(editContent[section] || {}),
+                [field]: url
+              }
+              const result = await updateKey(section, updatedSection, token)
+              if (result.success) {
+                showMessage('success', 'Image uploaded and saved!')
+                setUnsavedKeys(prev => prev.filter(k => k !== section))
+              } else {
+                showMessage('error', 'Image uploaded but failed to save. Please click Save button.')
+              }
+            } catch (err) {
+              showMessage('error', 'Image uploaded but failed to save. Please click Save button.')
+            } finally {
+              setSaving(false)
+            }
+          }, 100)
+          
           return url
         }
       }
