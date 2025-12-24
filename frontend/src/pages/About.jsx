@@ -41,11 +41,11 @@ export default function About() {
           className="relative"
         >
           {about.profileImage ? (
-            <div className="relative">
+            <div className="relative max-w-md mx-auto">
               <img
                 src={about.profileImage}
                 alt="Profile"
-                className="rounded-2xl shadow-2xl w-full max-w-md mx-auto"
+                className="rounded-2xl shadow-2xl w-full h-auto object-cover"
               />
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-pink-500/20"></div>
             </div>
