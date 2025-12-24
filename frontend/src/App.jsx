@@ -25,48 +25,55 @@ export default function App() {
 function AppContent() {
   const { loading, error, fetchContent } = useContent()
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading your portfolio...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
-        <div className="text-center max-w-md">
-          <div className="text-6xl mb-6">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Unable to Load Portfolio</h1>
-          <p className="text-gray-600 mb-6">
-            We're having trouble connecting to the server. This could be a temporary issue.
-          </p>
-          <button
-            onClick={() => fetchContent()}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md hover:shadow-lg"
-          >
-            Try Again
-          </button>
-          <p className="text-sm text-gray-500 mt-4">
-            If this problem persists, please contact the site administrator.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <>
-      <Navbar />
-      <main className="flex-1">
-        <ContentRoutes />
-      </main>
-      <Footer />
-    </>
+    <Routes>
+      {/* Admin route - always accessible, doesn't require content to be loaded */}
+      <Route path="/admin" element={<Admin />} />
+      
+      {/* Progress tracker routes - also accessible during loading */}
+      <Route path="/progress" element={<ProgressTracker />} />
+      <Route path="/progress/:trackerKey" element={<ProgressTracker />} />
+      <Route path="/progress/tracker" element={<ProgressTracker />} />
+      
+      {/* Main content routes - show loading/error states */}
+      <Route path="/*" element={
+        loading ? (
+          <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+              <p className="text-gray-600 text-lg">Loading your portfolio...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
+            <div className="text-center max-w-md">
+              <div className="text-6xl mb-6">⚠️</div>
+              <h1 className="text-2xl font-bold text-gray-800 mb-4">Unable to Load Portfolio</h1>
+              <p className="text-gray-600 mb-6">
+                We're having trouble connecting to the server. This could be a temporary issue.
+              </p>
+              <button
+                onClick={() => fetchContent()}
+                className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md hover:shadow-lg"
+              >
+                Try Again
+              </button>
+              <p className="text-sm text-gray-500 mt-4">
+                If this problem persists, please contact the site administrator.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <Navbar />
+            <main className="flex-1">
+              <ContentRoutes />
+            </main>
+            <Footer />
+          </>
+        )
+      } />
+    </Routes>
   )
 }
 
@@ -77,20 +84,13 @@ function ContentRoutes() {
     : ['home', 'about', 'experience', 'projects', 'skills', 'contact']
 
   return (
-    <Routes>
-      <Route path="/" element={<>
-        {enabled.includes('home') && <Home />}
-        {enabled.includes('about') && <About />}
-        {enabled.includes('experience') && <Experience />}
-        {enabled.includes('projects') && <Projects />}
-        {enabled.includes('skills') && <Skills />}
-        {enabled.includes('contact') && <Contact />}
-      </>} />
-      <Route path="/admin" element={<Admin />} />
-      {/* Progress tracker routes: default, specific tracker key, and legacy path */}
-      <Route path="/progress" element={<ProgressTracker />} />
-      <Route path="/progress/:trackerKey" element={<ProgressTracker />} />
-      <Route path="/progress/tracker" element={<ProgressTracker />} />
-    </Routes>
+    <>
+      {enabled.includes('home') && <Home />}
+      {enabled.includes('about') && <About />}
+      {enabled.includes('experience') && <Experience />}
+      {enabled.includes('projects') && <Projects />}
+      {enabled.includes('skills') && <Skills />}
+      {enabled.includes('contact') && <Contact />}
+    </>
   )
 }
