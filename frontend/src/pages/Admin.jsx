@@ -611,9 +611,8 @@ function ProgressTrackerTab({ data, update, save, saving, trackerHeader, updateH
 
   // Auto-populate editor with defaults when no data exists (doesn't save to backend until you click Save)
   useEffect(() => {
-    // Only auto-populate when `data` is strictly null/undefined —
-    // if data is an empty array (created but intentionally blank), don't inject defaults automatically.
-    if ((data === undefined || data === null) && typeof update === 'function') {
+    // Auto-populate when data is null/undefined OR an empty array
+    if (((data === undefined || data === null) || (Array.isArray(data) && data.length === 0)) && typeof update === 'function') {
       update(DEFAULT_PROGRESS_TRACKER)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
