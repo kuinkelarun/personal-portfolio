@@ -283,8 +283,13 @@ def upload_file():
         f.save(str(dest))
     except Exception as e:
         return jsonify({'error': 'failed to save file'}), 500
+    
     # Return a URL that the frontend can use
-    url = f"{request.url_root.rstrip('/')}/static/uploads/{filename}"
+    # Force HTTPS in production (Railway, Heroku, etc. use HTTPS)
+    url_root = request.url_root.rstrip('/')
+    if url_root.startswith('http://') and 'railway.app' in url_root:
+        url_root = url_root.replace('http://', 'https://')
+    url = f"{url_root}/static/uploads/{filename}"
     return jsonify({'url': url})
 
 # --- Sample data (can later come from DB) ---
