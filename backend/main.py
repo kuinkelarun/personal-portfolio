@@ -261,6 +261,12 @@ UPLOAD_DIR = Path(os.path.join(os.path.dirname(DB_PATH) or '.', 'static', 'uploa
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
+@app.route('/static/uploads/<path:filename>')
+def serve_upload(filename):
+    """Serve uploaded files (images, etc.)"""
+    return send_from_directory(str(UPLOAD_DIR), filename)
+
+
 @app.post('/api/upload')
 def upload_file():
     # Simple admin-protected upload endpoint
