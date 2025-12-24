@@ -11,19 +11,45 @@ export function ContentProvider({ children }) {
   const [content, setContent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [retryCount, setRetryCount] = useState(0)
 
-  async function fetchContent() {
+  async function fetchContent(attempt = 0) {
     setLoading(true)
     try {
       const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
       const url = base ? `${base}/api/content` : '/api/content'
       const res = await axios.get(url)
-      setContent(res.data)
-      setError(null)
+      
+      // Check if we got valid content (not just empty object or default values)
+      if (res.data && Object.keys(res.data).length > 0) {
+        setContent(res.data)
+        setError(null)
+        setRetryCount(0)
+        setLoading(false)
+      } else if (attempt < 3) {
+        // If content is empty and we haven't retried 3 times, retry after a delay
+        console.log(`Content empty, retrying... (attempt ${attempt + 1})`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+        return fetchContent(attempt + 1)
+      } else {
+        // After max retries, accept whatever we got
+        setContent(res.data || {})
+        setError(null)
+        setLoading(false)
+      }
     } catch (err) {
       console.error('Failed to load content', err)
+      
+      // Retry on network errors (backend not ready yet)
+      if (attempt < 3 && (err.code === 'ERR_NETWORK' || err.response?.status >= 500)) {
+        console.log(`Network error, retrying... (attempt ${attempt + 1})`);
+        setRetryCount(attempt + 1)
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+        return fetchContent(attempt + 1)
+      }
+      
+      // Max retries reached or non-retryable error
       setError(err)
-    } finally {
       setLoading(false)
     }
   }

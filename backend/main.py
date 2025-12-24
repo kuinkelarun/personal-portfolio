@@ -154,72 +154,107 @@ else:
                 data[k] = v
         return data
 
-init_db()
+# Database initialization flag to prevent serving requests before DB is ready
+_db_initialized = False
+_db_init_error = None
 
-# Initialize default content if missing
-def _ensure_default_content():
-    defaults = {
-        "about": {
-            "name": "Your Name",
-            "headline": "Hi, I'm",
-            "tagline": "Full-Stack Developer | Software Engineer | Tech Enthusiast",
-            "summary": "Building modern web applications with clean code and elegant design. Passionate about creating user-friendly experiences that make a difference.",
-            "bio": "I'm passionate about building innovative solutions that make a difference. With a strong foundation in software development and a keen eye for design, I create applications that are both functional and beautiful.",
-            "profileImage": "",
-            "socialLinks": {
-                "github": "",
-                "linkedin": "",
-                "twitter": ""
+def _ensure_database_ready():
+    """Initialize database and ensure all default content is loaded."""
+    global _db_initialized, _db_init_error
+    if _db_initialized:
+        return True
+    
+    if _db_init_error:
+        # If we previously failed, don't keep retrying on every request
+        raise _db_init_error
+    
+    try:
+        # Initialize the database tables
+        init_db()
+        
+        # Initialize default content if missing
+        defaults = {
+            "about": {
+                "name": "Your Name",
+                "headline": "Hi, I'm",
+                "tagline": "Full-Stack Developer | Software Engineer | Tech Enthusiast",
+                "summary": "Building modern web applications with clean code and elegant design. Passionate about creating user-friendly experiences that make a difference.",
+                "bio": "I'm passionate about building innovative solutions that make a difference. With a strong foundation in software development and a keen eye for design, I create applications that are both functional and beautiful.",
+                "profileImage": "",
+                "socialLinks": {
+                    "github": "",
+                    "linkedin": "",
+                    "twitter": ""
+                },
+                "highlights": [
+                    {"icon": "🎯", "title": "Focused", "description": "Dedicated to delivering high-quality solutions"},
+                    {"icon": "🚀", "title": "Innovative", "description": "Always exploring new technologies and approaches"},
+                    {"icon": "💡", "title": "Creative", "description": "Thinking outside the box to solve problems"},
+                    {"icon": "🤝", "title": "Collaborative", "description": "Working effectively with teams and stakeholders"}
+                ]
             },
-            "highlights": [
-                {"icon": "🎯", "title": "Focused", "description": "Dedicated to delivering high-quality solutions"},
-                {"icon": "🚀", "title": "Innovative", "description": "Always exploring new technologies and approaches"},
-                {"icon": "💡", "title": "Creative", "description": "Thinking outside the box to solve problems"},
-                {"icon": "🤝", "title": "Collaborative", "description": "Working effectively with teams and stakeholders"}
-            ]
-        },
-        "experience": [
-            {
-                "company": "Tech Company",
-                "role": "Software Engineer",
-                "period": "2022 - Present",
-                "summary": "Building scalable web applications and leading development initiatives.",
-                "responsibilities": [
-                    "Developed and maintained web applications",
-                    "Led a team of developers",
-                    "Implemented CI/CD pipelines"
-                ],
-                "technologies": ["React", "Node.js", "PostgreSQL", "Docker"]
+            "experience": [
+                {
+                    "company": "Tech Company",
+                    "role": "Software Engineer",
+                    "period": "2022 - Present",
+                    "summary": "Building scalable web applications and leading development initiatives.",
+                    "responsibilities": [
+                        "Developed and maintained web applications",
+                        "Led a team of developers",
+                        "Implemented CI/CD pipelines"
+                    ],
+                    "technologies": ["React", "Node.js", "PostgreSQL", "Docker"]
+                }
+            ],
+            "projects": [],
+            "skills": {
+                "technical": ["JavaScript", "Python", "React", "Node.js", "SQL"],
+                "tools": ["Git", "Docker", "VS Code", "AWS"],
+                "soft": ["Communication", "Problem Solving", "Teamwork", "Leadership"],
+                "other": []
+            },
+            "contact": {
+                "email": "your.email@example.com",
+                "phone": "",
+                "location": ""
+            },
+            "layout": {
+                "sections": ["home", "about", "experience", "projects", "skills", "contact"]
             }
-        ],
-        "projects": [],
-        "skills": {
-            "technical": ["JavaScript", "Python", "React", "Node.js", "SQL"],
-            "tools": ["Git", "Docker", "VS Code", "AWS"],
-            "soft": ["Communication", "Problem Solving", "Teamwork", "Leadership"],
-            "other": []
-        },
-        "contact": {
-            "email": "your.email@example.com",
-            "phone": "",
-            "location": ""
-        },
-        "layout": {
-            "sections": ["home", "about", "experience", "projects", "skills", "contact"]
         }
-    }
-    with sqlite3.connect(DB_PATH) as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "CREATE TABLE IF NOT EXISTS content (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-        )
-        conn.commit()
-    for k, v in defaults.items():
-        if _get_content(k) is None:
-            _set_content(k, v)
+        
+        # For SQLite fallback, create content table if needed
+        if not USE_DB_MODULE:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "CREATE TABLE IF NOT EXISTS content (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+                )
+                conn.commit()
+        
+        # Insert defaults only if they don't exist
+        for k, v in defaults.items():
+            if _get_content(k) is None:
+                _set_content(k, v)
+        
+        _db_initialized = True
+        print("Database initialized successfully")
+        return True
+    except Exception as e:
+        print(f"CRITICAL: Error initializing database: {e}")
+        import traceback
+        traceback.print_exc()
+        _db_init_error = e
+        # Don't mark as initialized if there was an error
+        raise
 
-
-_ensure_default_content()
+# Initialize database at startup
+try:
+    _ensure_database_ready()
+except Exception as e:
+    print(f"WARNING: Failed to initialize database at startup: {e}")
+    print("The application will attempt to initialize on first request")
 
 # Ensure uploads directory exists for admin image uploads
 UPLOAD_DIR = Path(os.path.join(os.path.dirname(DB_PATH) or '.', 'static', 'uploads'))
@@ -588,11 +623,25 @@ def _is_admin(request):
 
 @app.get('/api/content')
 def get_all_content():
+    # Ensure database is ready before serving content
+    try:
+        if not _db_initialized:
+            _ensure_database_ready()
+    except Exception as e:
+        print(f"Database initialization failed: {e}")
+        return jsonify({"error": "Database unavailable"}), 503
+    
     try:
         data = _get_all_content()
+        # Ensure we always return valid data
+        if not data:
+            data = {}
         return jsonify(data)
-    except Exception:
-        return jsonify({}), 500
+    except Exception as e:
+        print(f"Error fetching content: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Failed to fetch content"}), 500
 
 
 @app.get('/api/content/<key>')
