@@ -285,11 +285,15 @@ def upload_file():
         return jsonify({'error': 'failed to save file'}), 500
     
     # Return a URL that the frontend can use
-    # Force HTTPS in production (Railway, Heroku, etc. use HTTPS)
-    url_root = request.url_root.rstrip('/')
-    if url_root.startswith('http://') and 'railway.app' in url_root:
-        url_root = url_root.replace('http://', 'https://')
-    url = f"{url_root}/static/uploads/{filename}"
+    # Detect if we're behind a proxy (Railway, Heroku, etc.) and force HTTPS
+    # Check X-Forwarded-Proto header first (set by reverse proxies)
+    proto = request.headers.get('X-Forwarded-Proto', 'http')
+    
+    # Get the host from either the Host header or url_root
+    host = request.headers.get('Host') or request.host
+    
+    # Build the URL with the correct protocol
+    url = f"{proto}://{host}/static/uploads/{filename}"
     return jsonify({'url': url})
 
 # --- Sample data (can later come from DB) ---
@@ -674,6 +678,47 @@ def put_content(key):
         _set_content(key, val)
     except Exception as e:
         return jsonify({"error": "failed to write content"}), 500
+    return jsonify({"success": True})
+
+
+@app.post('/api/admin/fix-image-urls')
+def fix_image_urls():
+    """Admin endpoint to fix http:// URLs to https:// in the database"""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    
+    try:
+        fixed_count = 0
+        data = _get_all_content()
+        
+        # Fix profile image URL in about section
+        if 'about' in data and isinstance(data['about'], dict):
+            profile_img = data['about'].get('profileImage', '')
+            if profile_img and profile_img.startswith('http://'):
+                data['about']['profileImage'] = profile_img.replace('http://', 'https://')
+                _set_content('about', data['about'])
+                fixed_count += 1
+        
+        # Fix project image URLs
+        if 'projects' in data and isinstance(data['projects'], list):
+            projects_updated = False
+            for project in data['projects']:
+                if isinstance(project, dict) and 'image' in project:
+                    img = project.get('image', '')
+                    if img and img.startswith('http://'):
+                        project['image'] = img.replace('http://', 'https://')
+                        projects_updated = True
+                        fixed_count += 1
+            
+            if projects_updated:
+                _set_content('projects', data['projects'])
+        
+        return jsonify({"success": True, "fixed_count": fixed_count, "message": f"Fixed {fixed_count} image URL(s)"})
+    except Exception as e:
+        print(f"Error fixing image URLs: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
     return jsonify({"success": True})
 
 
