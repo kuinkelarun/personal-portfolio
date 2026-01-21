@@ -27,7 +27,7 @@ export default function Admin() {
   // Ensure a default tracker key exists in editContent for the editor
   useEffect(() => {
     if (unlocked && editContent) {
-      const DEFAULT_HEADER = 'DevOps to Elite AI Engineer - 6 Month Journey'
+      const DEFAULT_HEADER = 'DevOps to AI Engineer - 6 Month Journey'
       let changed = false
       const next = { ...editContent }
 
@@ -394,7 +394,7 @@ export default function Admin() {
                 selectedKey={selectedTrackerKey}
                 setSelectedKey={setSelectedTrackerKey}
                 createKey={(key) => {
-                  const defaultHeader = 'DevOps to Elite AI Engineer - 6 Month Journey'
+                  const defaultHeader = 'DevOps to AI Engineer - 6 Month Journey'
                   setEditContent(prev => ({ ...prev, [key]: { header: defaultHeader, phases: [] } }))
                   setSelectedTrackerKey(key)
                   markDirty(key)

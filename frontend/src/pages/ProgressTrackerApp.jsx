@@ -258,7 +258,7 @@ export default function ProgressTrackerApp() {
   // Tracker header (admin editable). Fallback to default title when missing.
   const trackerHeader = (() => {
     // Default to the prominent subtitle used in the UI when no header is provided
-    const DEFAULT_TITLE = 'DevOps to Elite AI Engineer - 6 Month Journey'
+    const DEFAULT_TITLE = 'DevOps to AI Engineer - 6 Month Journey'
     if (!content) return DEFAULT_TITLE
     const v = content[contentKey]
     if (v && typeof v.header === 'string' && v.header.trim()) return v.header
@@ -443,7 +443,7 @@ export default function ProgressTrackerApp() {
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             {trackerHeader}
           </h1>
-          <p className="text-slate-400">DevOps to Elite AI Engineer - 6 Month Journey</p>
+          <p className="text-slate-400">DevOps to AI Engineer - 6 Month Journey</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
