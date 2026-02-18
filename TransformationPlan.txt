@@ -1,4 +1,4 @@
-# DevOps to Elite AI Engineer: 6-Month Transformation Plan
+# DevOps to AI Engineer: 6-Month Transformation Plan
 
 ## Phase 1: Foundations (Weeks 1-6)
 **Goal: Build mathematical foundations and core ML understanding**

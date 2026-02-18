@@ -66,12 +66,14 @@ export default function About() {
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
         >
-          <h3 className="text-3xl font-bold text-gray-900 mb-6">
-            {about.headline || "Hello, I'm a Software Developer"}
-          </h3>
+          {(about.aboutHeadline || about.headline) && (
+            <h3 className="text-3xl font-bold text-gray-900 mb-6">
+              {about.aboutHeadline || about.headline}
+            </h3>
+          )}
           <div className="prose prose-lg text-gray-600 space-y-4">
             <p>
-              {about.bio || about.summary || "I'm passionate about building innovative solutions that make a difference. With a strong foundation in software development and a keen eye for design, I create applications that are both functional and beautiful."}
+              {about.bio || "I'm passionate about building innovative solutions that make a difference. With a strong foundation in software development and a keen eye for design, I create applications that are both functional and beautiful."}
             </p>
             {about.bio2 && <p>{about.bio2}</p>}
             {about.bio3 && <p>{about.bio3}</p>}

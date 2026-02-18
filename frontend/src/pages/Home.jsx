@@ -40,7 +40,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.3 }}
             className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6"
           >
-            <span className="text-gray-900">{about.headline || "Hi, I'm"}</span>
+            <span className="text-gray-900">{about.greeting || "Hi, I'm"}</span>
             <br />
             <span className="gradient-text">{about.name || "Your Name"}</span>
           </motion.h1>

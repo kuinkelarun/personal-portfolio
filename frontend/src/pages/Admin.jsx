@@ -851,19 +851,25 @@ function AboutTab({ data, update, save, saving, uploadImage }) {
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Headline</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Intro Greeting
+            <span className="text-xs text-gray-500 ml-2 font-normal">(Shows before your name on homepage)</span>
+          </label>
           <input
             type="text"
-            value={data.headline || ''}
-            onChange={e => update('about', 'headline', e.target.value)}
+            value={data.greeting || ''}
+            onChange={e => update('about', 'greeting', e.target.value)}
             className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
-            placeholder="Hi, I'm..."
+            placeholder="Hi, I'm"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Tagline</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Tagline
+          <span className="text-xs text-gray-500 ml-2 font-normal">(Shows below your name on homepage)</span>
+        </label>
         <input
           type="text"
           value={data.tagline || ''}
@@ -874,13 +880,44 @@ function AboutTab({ data, update, save, saving, uploadImage }) {
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Summary/Bio</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Home Intro Text
+          <span className="text-xs text-gray-500 ml-2 font-normal">(Shows on the homepage intro section)</span>
+        </label>
         <textarea
           value={data.summary || ''}
           onChange={e => update('about', 'summary', e.target.value)}
+          rows={3}
+          className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none resize-none"
+          placeholder="A brief intro text for your homepage (e.g., 'Building modern web applications with clean code...')"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          About Section Headline
+          <span className="text-xs text-gray-500 ml-2 font-normal">(Shows above bio in About section - leave blank to hide)</span>
+        </label>
+        <input
+          type="text"
+          value={data.headline || ''}
+          onChange={e => update('about', 'headline', e.target.value)}
+          className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+          placeholder="Optional headline for About section"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          About Me Bio
+          <span className="text-xs text-gray-500 ml-2 font-normal">(Shows on the About page)</span>
+        </label>
+        <textarea
+          value={data.bio || ''}
+          onChange={e => update('about', 'bio', e.target.value)}
           rows={4}
           className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none resize-none"
-          placeholder="A brief summary about yourself..."
+          placeholder="A detailed bio about yourself for the About page..."
         />
       </div>
 
