@@ -1,6 +1,63 @@
 import { motion } from 'framer-motion'
 import { useContent } from '../contexts/ContentContext'
 
+// Helper function to parse bio text with markdown-style formatting
+function parseBioText(text) {
+  if (!text) return null
+  
+  const lines = text.split('\n')
+  const elements = []
+  let currentParagraph = []
+  let currentList = []
+  
+  const flushParagraph = () => {
+    if (currentParagraph.length > 0) {
+      elements.push({
+        type: 'paragraph',
+        content: currentParagraph.join('\n')
+      })
+      currentParagraph = []
+    }
+  }
+  
+  const flushList = () => {
+    if (currentList.length > 0) {
+      elements.push({
+        type: 'list',
+        items: [...currentList]
+      })
+      currentList = []
+    }
+  }
+  
+  lines.forEach((line) => {
+    const trimmedLine = line.trim()
+    
+    // Empty line - paragraph break
+    if (trimmedLine === '') {
+      flushParagraph()
+      flushList()
+      return
+    }
+    
+    // Bullet point (starts with -, *, or •)
+    if (/^[-*•]\s/.test(trimmedLine)) {
+      flushParagraph()
+      currentList.push(trimmedLine.replace(/^[-*•]\s/, ''))
+    } else {
+      // Regular text
+      flushList()
+      currentParagraph.push(line)
+    }
+  })
+  
+  // Flush remaining content
+  flushParagraph()
+  flushList()
+  
+  return elements
+}
+
 export default function About() {
   const { content } = useContent()
   const about = content?.about || {}
@@ -12,6 +69,8 @@ export default function About() {
     { icon: '💡', title: 'Creative', description: 'Thinking outside the box to solve problems' },
     { icon: '🤝', title: 'Collaborative', description: 'Working effectively with teams and stakeholders' }
   ]
+  
+  const bioElements = parseBioText(about.bio)
 
   return (
     <section id="about" className="section py-20 bg-white">
@@ -73,9 +132,30 @@ export default function About() {
             </h3>
           )}
           <div className="prose prose-lg text-gray-600 space-y-4">
-            <p>
-              {about.bio || "I'm passionate about building innovative solutions that make a difference. With a strong foundation in software development and a keen eye for design, I create applications that are both functional and beautiful."}
-            </p>
+            {bioElements && bioElements.length > 0 ? (
+              bioElements.map((element, idx) => {
+                if (element.type === 'paragraph') {
+                  return (
+                    <p key={idx} className="whitespace-pre-line">
+                      {element.content}
+                    </p>
+                  )
+                } else if (element.type === 'list') {
+                  return (
+                    <ul key={idx} className="list-disc list-inside space-y-2 ml-4">
+                      {element.items.map((item, itemIdx) => (
+                        <li key={itemIdx}>{item}</li>
+                      ))}
+                    </ul>
+                  )
+                }
+                return null
+              })
+            ) : (
+              <p>
+                I'm passionate about building innovative solutions that make a difference. With a strong foundation in software development and a keen eye for design, I create applications that are both functional and beautiful.
+              </p>
+            )}
             {about.bio2 && <p>{about.bio2}</p>}
             {about.bio3 && <p>{about.bio3}</p>}
           </div>

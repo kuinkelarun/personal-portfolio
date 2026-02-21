@@ -914,12 +914,30 @@ function AboutTab({ data, update, save, saving, uploadImage }) {
           About Me Bio
           <span className="text-xs text-gray-500 ml-2 font-normal">(Shows on the About page)</span>
         </label>
+        <div className="mb-2 text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="font-semibold mb-1">✨ Formatting tips:</p>
+          <ul className="space-y-1 ml-4">
+            <li>• Use blank lines to separate paragraphs</li>
+            <li>• Start lines with "-" or "*" for bullet points</li>
+            <li>• Example: "- Build AI solutions" creates a bullet</li>
+          </ul>
+        </div>
         <textarea
           value={data.bio || ''}
           onChange={e => update('about', 'bio', e.target.value)}
-          rows={4}
-          className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none resize-none"
-          placeholder="A detailed bio about yourself for the About page..."
+          rows={8}
+          className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none resize-none font-mono text-sm"
+          placeholder="I'm an AI solutions architect who believes the best technology is the kind that makes it to production.
+
+The Journey:
+
+- Started in DevOps, evolved into AI agent development
+- How your infrastructure background gives you an edge
+
+What I Do:
+
+- Build end-to-end agentic AI solutions
+- Specialize in software modernization"
         />
       </div>
 
