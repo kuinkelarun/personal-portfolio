@@ -66,8 +66,8 @@ export default function Projects() {
         className="text-center mb-16"
       >
         <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-          <span className="text-gray-900">Featured </span>
-          <span className="gradient-text">Projects</span>
+          <span className="text-gray-900">{(content?.sectionHeaders?.projectsTitle) || 'Featured'} </span>
+          <span className="gradient-text">{(content?.sectionHeaders?.projectsSubtitle) || 'Projects'}</span>
         </h2>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           A showcase of my recent work and personal projects

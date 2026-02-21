@@ -4,6 +4,7 @@ import { useContent } from '../contexts/ContentContext'
 export default function About() {
   const { content } = useContent()
   const about = content?.about || {}
+  const headers = content?.sectionHeaders || {}
 
   const highlights = about.highlights || [
     { icon: '🎯', title: 'Focused', description: 'Dedicated to delivering high-quality solutions' },
@@ -23,8 +24,8 @@ export default function About() {
         className="text-center mb-16"
       >
         <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-          <span className="text-gray-900">About </span>
-          <span className="gradient-text">Me</span>
+          <span className="text-gray-900">{headers.aboutTitle || 'About'} </span>
+          <span className="gradient-text">{headers.aboutSubtitle || 'Me'}</span>
         </h2>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           {about.subtitle || "Get to know more about my background and what drives me"}
@@ -111,7 +112,7 @@ export default function About() {
         className="mb-16"
       >
         <h3 className="text-3xl font-bold text-center text-gray-900 mb-12">
-          What I Bring to the Table
+          {headers.aboutHighlights || 'What I Bring to the Table'}
         </h3>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {highlights.map((highlight, idx) => (

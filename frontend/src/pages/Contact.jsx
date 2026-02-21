@@ -7,6 +7,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 export default function Contact() {
   const { content } = useContent()
   const contactInfo = content?.contact ?? {}
+  const headers = content?.sectionHeaders || {}
   const [form, setForm] = useState({ name: '', email: '', message: '' })
   const [status, setStatus] = useState({ loading: false, error: '', ok: false })
 
@@ -42,8 +43,8 @@ export default function Contact() {
         className="text-center mb-16"
       >
         <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-          <span className="text-gray-900">Get In </span>
-          <span className="gradient-text">Touch</span>
+          <span className="text-gray-900">{headers.contactTitle || 'Get In'} </span>
+          <span className="gradient-text">{headers.contactSubtitle || 'Touch'}</span>
         </h2>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           Have a question or want to work together? I'd love to hear from you!

@@ -8,6 +8,7 @@ export default function Skills() {
     tools: ['Git', 'Docker', 'VS Code'],
     soft: ['Communication', 'Problem Solving', 'Teamwork']
   }
+  const headers = content?.sectionHeaders || {}
 
   const skillCategories = [
     {
@@ -41,8 +42,8 @@ export default function Skills() {
         className="text-center mb-16"
       >
         <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-          <span className="text-gray-900">My </span>
-          <span className="gradient-text">Skills</span>
+          <span className="text-gray-900">{headers.skillsTitle || 'My'} </span>
+          <span className="gradient-text">{headers.skillsSubtitle || 'Skills'}</span>
         </h2>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           A comprehensive set of skills and expertise I bring to every project

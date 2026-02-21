@@ -5,6 +5,7 @@ import { useContent } from '../contexts/ContentContext'
 export default function Experience() {
   const { content } = useContent()
   const experience = content?.experience ?? experienceData
+  const headers = content?.sectionHeaders || {}
   
   return (
     <section id="experience" className="section py-20 bg-gradient-to-b from-gray-50 to-white">
@@ -17,8 +18,8 @@ export default function Experience() {
         className="text-center mb-16"
       >
         <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-          <span className="text-gray-900">Professional </span>
-          <span className="gradient-text">Experience</span>
+          <span className="text-gray-900">{headers.experienceTitle || 'Professional'} </span>
+          <span className="gradient-text">{headers.experienceSubtitle || 'Experience'}</span>
         </h2>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           My journey in software development and the milestones I've achieved

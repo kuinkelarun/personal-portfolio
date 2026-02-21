@@ -311,6 +311,7 @@ export default function Admin() {
     { id: 'projects', label: 'Projects', icon: '💻' },
     { id: 'skills', label: 'Skills', icon: '🎯' },
     { id: 'contact', label: 'Contact', icon: '📧' },
+    { id: 'section-headers', label: 'Section Headers', icon: '📝' },
     { id: 'footer', label: 'Footer', icon: '🔗' },
     { id: 'layout', label: 'Layout', icon: '⚙️' },
     { id: 'progress-tracker', label: 'Progress Tracker', icon: '📈' }
@@ -385,6 +386,7 @@ export default function Admin() {
           {activeTab === 'projects' && <ProjectsTab data={editContent.projects || []} update={(data) => setEditContent(prev => ({...prev, projects: data}))} save={() => saveSection('projects')} saving={saving} addItem={addArrayItem} removeItem={removeArrayItem} updateItem={updateArrayItem} uploadImage={uploadImage} token={token} />}
           {activeTab === 'skills' && <SkillsTab data={editContent.skills || {}} update={(data) => setEditContent(prev => ({...prev, skills: data}))} save={() => saveSection('skills')} saving={saving} addSkill={addSkill} removeSkill={removeSkill} />}
           {activeTab === 'contact' && <ContactTab data={editContent.contact || {}} update={updateSection} save={() => saveSection('contact')} saving={saving} />}
+          {activeTab === 'section-headers' && <SectionHeadersTab data={editContent.sectionHeaders || {}} update={(data) => setEditContent(prev => ({...prev, sectionHeaders: data}))} save={() => saveSection('sectionHeaders')} saving={saving} />}
           {activeTab === 'footer' && <FooterTab data={editContent.footerLinks || []} update={(data) => setEditContent(prev => ({...prev, footerLinks: data}))} save={() => saveSection('footerLinks')} saving={saving} />}
           {activeTab === 'layout' && <LayoutTab data={editContent.layout || {}} update={(data) => setEditContent(prev => ({...prev, layout: data}))} save={() => saveSection('layout')} saving={saving} />}
           {activeTab === 'progress-tracker' && (
@@ -973,6 +975,81 @@ function AboutTab({ data, update, save, saving, uploadImage }) {
         </div>
       </div>
 
+      {/* What I Bring to the Table / Highlights */}
+      <div>
+        <h4 className="mt-6 mb-3 font-semibold text-gray-800">What I Bring to the Table</h4>
+        <p className="text-sm text-gray-600 mb-4">Add highlights that showcase your strengths (max 4 recommended)</p>
+        
+        {(data.highlights || []).map((highlight, idx) => (
+          <div key={idx} className="p-4 bg-gray-50 rounded-lg border-2 border-gray-200 mb-3">
+            <div className="flex items-start justify-between mb-3">
+              <h5 className="font-semibold text-gray-900">Highlight #{idx + 1}</h5>
+              <button
+                onClick={() => {
+                  const newHighlights = (data.highlights || []).filter((_, i) => i !== idx)
+                  update('about', 'highlights', newHighlights)
+                }}
+                className="text-red-500 hover:text-red-700"
+                type="button"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+            <div className="grid md:grid-cols-3 gap-3">
+              <input
+                type="text"
+                value={highlight.icon || ''}
+                onChange={(e) => {
+                  const newHighlights = [...(data.highlights || [])]
+                  newHighlights[idx] = { ...newHighlights[idx], icon: e.target.value }
+                  update('about', 'highlights', newHighlights)
+                }}
+                placeholder="Emoji (e.g., 🎯)"
+                className="px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+              />
+              <input
+                type="text"
+                value={highlight.title || ''}
+                onChange={(e) => {
+                  const newHighlights = [...(data.highlights || [])]
+                  newHighlights[idx] = { ...newHighlights[idx], title: e.target.value }
+                  update('about', 'highlights', newHighlights)
+                }}
+                placeholder="Title"
+                className="px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+              />
+              <input
+                type="text"
+                value={highlight.description || ''}
+                onChange={(e) => {
+                  const newHighlights = [...(data.highlights || [])]
+                  newHighlights[idx] = { ...newHighlights[idx], description: e.target.value }
+                  update('about', 'highlights', newHighlights)
+                }}
+                placeholder="Description"
+                className="px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+              />
+            </div>
+          </div>
+        ))}
+        
+        <button
+          onClick={() => {
+            const newHighlights = [...(data.highlights || []), { icon: '', title: '', description: '' }]
+            update('about', 'highlights', newHighlights)
+          }}
+          className="btn-secondary inline-flex items-center gap-2"
+          type="button"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Highlight
+        </button>
+      </div>
+
       <div className="flex gap-3 pt-6 border-t border-gray-200">
         <button
           onClick={save}
@@ -1065,8 +1142,50 @@ function ExperienceTab({ data, update, save, saving, addItem, removeItem, update
             }}
             rows={3}
             placeholder="Job summary..."
-            className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none resize-none"
+            className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none resize-none mb-4"
           />
+
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Responsibilities/Achievements
+              <span className="text-xs text-gray-500 ml-2 font-normal">(One per line)</span>
+            </label>
+            <textarea
+              value={(exp.responsibilities || []).join('\n')}
+              onChange={e => {
+                const newData = [...data]
+                newData[idx] = { 
+                  ...newData[idx], 
+                  responsibilities: e.target.value.split('\n')
+                }
+                update(newData)
+              }}
+              rows={4}
+              placeholder="Developed and maintained web applications&#10;Led a team of developers&#10;Implemented CI/CD pipelines"
+              className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Technologies/Skills
+              <span className="text-xs text-gray-500 ml-2 font-normal">(Comma-separated)</span>
+            </label>
+            <input
+              type="text"
+              value={(exp.technologies || []).join(', ')}
+              onChange={e => {
+                const newData = [...data]
+                newData[idx] = { 
+                  ...newData[idx], 
+                  technologies: e.target.value.split(',').map(t => t.trim())
+                }
+                update(newData)
+              }}
+              placeholder="React, Node.js, PostgreSQL, Docker"
+              className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+            />
+          </div>
         </div>
       ))}
 
@@ -1332,6 +1451,82 @@ function ContactTab({ data, update, save, saving }) {
       <div className="flex gap-3 pt-6 border-t border-gray-200">
         <button onClick={save} disabled={saving} className="btn-primary disabled:opacity-50">
           {saving ? 'Saving...' : 'Save Contact Info'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Section Headers Tab
+function SectionHeadersTab({ data, update, save, saving }) {
+  const sections = [
+    { key: 'about', label: 'About Section', defaultTitle: 'About', defaultSubtitle: 'Me' },
+    { key: 'aboutHighlights', label: 'What I Bring to the Table', defaultTitle: 'What I Bring to the Table', defaultSubtitle: '' },
+    { key: 'experience', label: 'Experience Section', defaultTitle: 'Professional', defaultSubtitle: 'Experience' },
+    { key: 'projects', label: 'Projects Section', defaultTitle: 'Featured', defaultSubtitle: 'Projects' },
+    { key: 'skills', label: 'Skills Section', defaultTitle: 'My', defaultSubtitle: 'Skills' },
+    { key: 'contact', label: 'Contact Section', defaultTitle: 'Get In', defaultSubtitle: 'Touch' }
+  ]
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Section Headers</h2>
+      <p className="text-gray-600 mb-6">Customize the title for each section of your portfolio. Leave blank to use defaults.</p>
+
+      {sections.map((section) => (
+        <div key={section.key} className="p-6 bg-gray-50 rounded-xl border-2 border-gray-200">
+          <h3 className="font-bold text-gray-900 mb-4">{section.label}</h3>
+          
+          {section.key === 'aboutHighlights' ? (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Section Title
+                <span className="text-xs text-gray-500 ml-2 font-normal">(Default: {section.defaultTitle})</span>
+              </label>
+              <input
+                type="text"
+                value={data[section.key] || ''}
+                onChange={e => update({ ...data, [section.key]: e.target.value })}
+                className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+                placeholder={section.defaultTitle}
+              />
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  First Part (Normal)
+                  <span className="text-xs text-gray-500 ml-2 font-normal">(Default: {section.defaultTitle})</span>
+                </label>
+                <input
+                  type="text"
+                  value={data[`${section.key}Title`] || ''}
+                  onChange={e => update({ ...data, [`${section.key}Title`]: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+                  placeholder={section.defaultTitle}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Second Part (Gradient)
+                  <span className="text-xs text-gray-500 ml-2 font-normal">(Default: {section.defaultSubtitle})</span>
+                </label>
+                <input
+                  type="text"
+                  value={data[`${section.key}Subtitle`] || ''}
+                  onChange={e => update({ ...data, [`${section.key}Subtitle`]: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+                  placeholder={section.defaultSubtitle}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div className="flex gap-3 pt-6 border-t border-gray-200">
+        <button onClick={save} disabled={saving} className="btn-primary disabled:opacity-50">
+          {saving ? 'Saving...' : 'Save Section Headers'}
         </button>
       </div>
     </div>
