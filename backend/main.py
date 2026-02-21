@@ -627,6 +627,35 @@ def stats():
     })
 
 
+@app.get("/api/admin/messages")
+def get_messages():
+    """Admin-only: retrieve all contact form messages"""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    
+    try:
+        if USE_DB_MODULE:
+            messages = db_get_all_messages() or []
+        else:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT id, name, email, message, ip, created_at FROM messages ORDER BY created_at DESC")
+                rows = cur.fetchall()
+                messages = []
+                for r in rows:
+                    messages.append({
+                        'id': r[0],
+                        'name': r[1],
+                        'email': r[2],
+                        'message': r[3],
+                        'ip': r[4],
+                        'created_at': r[5]
+                    })
+        return jsonify(messages)
+    except Exception as e:
+        return jsonify({"error": "Failed to retrieve messages", "details": str(e)}), 500
+
+
 # --- Content API ---
 def _is_admin(request):
     # Use the module-level ADMIN_TOKEN (read from env at startup)

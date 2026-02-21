@@ -311,6 +311,7 @@ export default function Admin() {
     { id: 'projects', label: 'Projects', icon: '💻' },
     { id: 'skills', label: 'Skills', icon: '🎯' },
     { id: 'contact', label: 'Contact', icon: '📧' },
+    { id: 'messages', label: 'Messages', icon: '💬' },
     { id: 'section-headers', label: 'Section Headers', icon: '📝' },
     { id: 'footer', label: 'Footer', icon: '🔗' },
     { id: 'layout', label: 'Layout', icon: '⚙️' },
@@ -386,6 +387,7 @@ export default function Admin() {
           {activeTab === 'projects' && <ProjectsTab data={editContent.projects || []} update={(data) => setEditContent(prev => ({...prev, projects: data}))} save={() => saveSection('projects')} saving={saving} addItem={addArrayItem} removeItem={removeArrayItem} updateItem={updateArrayItem} uploadImage={uploadImage} token={token} />}
           {activeTab === 'skills' && <SkillsTab data={editContent.skills || {}} update={(data) => setEditContent(prev => ({...prev, skills: data}))} save={() => saveSection('skills')} saving={saving} addSkill={addSkill} removeSkill={removeSkill} />}
           {activeTab === 'contact' && <ContactTab data={editContent.contact || {}} update={updateSection} save={() => saveSection('contact')} saving={saving} />}
+          {activeTab === 'messages' && <MessagesTab token={token} />}
           {activeTab === 'section-headers' && <SectionHeadersTab data={editContent.sectionHeaders || {}} update={(data) => setEditContent(prev => ({...prev, sectionHeaders: data}))} save={() => saveSection('sectionHeaders')} saving={saving} />}
           {activeTab === 'footer' && <FooterTab data={editContent.footerLinks || []} update={(data) => setEditContent(prev => ({...prev, footerLinks: data}))} save={() => saveSection('footerLinks')} saving={saving} />}
           {activeTab === 'layout' && <LayoutTab data={editContent.layout || {}} update={(data) => setEditContent(prev => ({...prev, layout: data}))} save={() => saveSection('layout')} saving={saving} />}
@@ -1471,6 +1473,158 @@ function ContactTab({ data, update, save, saving }) {
           {saving ? 'Saving...' : 'Save Contact Info'}
         </button>
       </div>
+    </div>
+  )
+}
+
+// Messages Tab
+function MessagesTab({ token }) {
+  const [messages, setMessages] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [selectedMessage, setSelectedMessage] = useState(null)
+  const [copiedId, setCopiedId] = useState(null)
+
+  useEffect(() => {
+    fetchMessages()
+  }, [])
+
+  const fetchMessages = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/messages`, {
+        headers: { 'X-Admin-Token': token }
+      })
+      if (!res.ok) {
+        throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch messages')
+      }
+      const data = await res.json()
+      setMessages(data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const copyToClipboard = async (text, id) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A'
+    try {
+      return new Date(dateStr).toLocaleString()
+    } catch {
+      return dateStr
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-indigo-600"></div>
+        <p className="mt-4 text-gray-600">Loading messages...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <p className="text-red-600 font-semibold mb-2">Error loading messages</p>
+        <p className="text-red-500 text-sm">{error}</p>
+        <button onClick={fetchMessages} className="mt-4 btn-primary">
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Contact Form Messages</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            {messages.length} {messages.length === 1 ? 'message' : 'messages'} received
+          </p>
+        </div>
+        <button onClick={fetchMessages} className="btn-secondary text-sm">
+          🔄 Refresh
+        </button>
+      </div>
+
+      {messages.length === 0 ? (
+        <div className="glass-card rounded-xl p-12 text-center">
+          <div className="text-6xl mb-4">📭</div>
+          <p className="text-gray-600 text-lg">No messages yet</p>
+          <p className="text-gray-500 text-sm mt-2">Messages sent through the contact form will appear here</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className="glass-card rounded-xl p-6 hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => setSelectedMessage(selectedMessage?.id === msg.id ? null : msg)}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
+                    <span className="font-semibold text-gray-900">{msg.name}</span>
+                    <a
+                      href={`mailto:${msg.email}`}
+                      className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                      title="Click to email"
+                    >
+                      {msg.email}
+                    </a>
+                  </div>
+                  <p className={`text-gray-700 ${selectedMessage?.id === msg.id ? '' : 'line-clamp-2'}`}>
+                    {msg.message}
+                  </p>
+                  {selectedMessage?.id === msg.id && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 text-sm space-y-2">
+                      <p className="text-gray-500"><strong>Date:</strong> {formatDate(msg.created_at)}</p>
+                      <p className="text-gray-500"><strong>IP Address:</strong> {msg.ip || 'N/A'}</p>
+                      <div className="mt-3 flex gap-2 flex-wrap">
+                        <a
+                          href={`mailto:${msg.email}?subject=Re: Your message from portfolio&body=Hi ${msg.name},%0D%0A%0D%0A`}
+                          className="btn-primary text-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          📧 Reply via Email
+                        </a>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            copyToClipboard(msg.email, msg.id)
+                          }}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition-colors"
+                        >
+                          {copiedId === msg.id ? '✓ Copied!' : '📋 Copy Email'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="text-right text-sm text-gray-500 ml-4">
+                  {formatDate(msg.created_at).split(',')[0]}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
