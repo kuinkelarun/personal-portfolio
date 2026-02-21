@@ -2,7 +2,7 @@
 
 A modern, responsive personal portfolio built with React (Vite + Tailwind CSS) and Flask, deployed on Vercel (frontend) and Railways (backend).
 
-**Live Site:** [https://kuinkelarun-portfolio.vercel.app/](https://kuinkelarun-portfolio.vercel.app/)
+**Live Site:** [https://your-portfolio.vercel.app/](https://your-portfolio.vercel.app/)
 
 ## Features
 - React 18 + Vite + Tailwind CSS, responsive and fast
@@ -138,7 +138,7 @@ Railway offers persistent apps with no inactivity sleep on their free tier (with
 4. Environment Variables:
    - `FLASK_ENV=production`
    - `SECRET_KEY=your_secret_key_here`
-   - `FRONTEND_URL=https://kuinkelarun-portfoliohello.vercel.app` (your Vercel domain)
+   - `FRONTEND_URL=https://your-portfolio.vercel.app` (your Vercel domain)
    - `CORS_ALLOWED_ORIGINS=https://personal-portfolio-ten-phi-73.vercel.app`
    - `RATE_LIMIT=5/minute`
    - `ADMIN_TOKEN=your_secure_admin_token`

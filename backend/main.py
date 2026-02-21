@@ -300,32 +300,32 @@ def upload_file():
 PROJECTS = [
     {
         "id": 1,
-        "title": "Gun Death Analysis",
-        "description": "The notebook analyzes a comprehensive, 2012–2014 U.S. gun-death dataset (originally drawn from the CDC’s Multiple Cause of Death database via FiveThirtyEight) to identify which demographic and situational factors are most predictive of a fatality being classified as a suicide versus another intent (homicide, accident, etc.). After cleaning and encoding features like age, gender, race, place of death and education level, the team fits and compares several supervised classifiers—most notably regularized logistic regression, random forest and gradient-boosted decision trees—using cross-validation. Models are evaluated with ROC-AUC, precision/recall and confusion matrices, and feature importances or regression coefficients are examined to surface the strongest predictors of suicide.",
+        "title": "E-Commerce Platform",
+        "description": "A full-stack e-commerce application with user authentication, product catalog, shopping cart, and payment integration. Built with modern web technologies and optimized for performance.",
         "tags": ["Python", "Pandas", "scikit-learn", "ML"],
         "links": {
-            "github": "https://github.com/kuinkelarun/Gun-Death-Analysis",
-            "demo": "https://your-ds-demo.example.com"
+            "github": "https://github.com/yourusername/project-1",
+            "demo": "https://demo.example.com"
+        }
+    },
+    {
+        "id": 2,
+        "title": "Task Management App",
+        "description": "A collaborative task management tool with real-time updates, project boards, and team collaboration features. Includes drag-and-drop functionality and notifications.",
+        "tags": ["React", "Firebase", "Material-UI"],
+        "links": {
+            "github": "https://github.com/yourusername/project-2",
+            "demo": "https://demo.example.com"
         }
     },
     {
         "id": 3,
-        "title": "Nepali Calendar App",
-        "description": "Interactive Nepali calendar with events and holidays, built for the web.",
-        "tags": ["React", "Calendar", "i18n"],
+        "title": "Weather Dashboard",
+        "description": "A responsive weather application that displays current conditions and forecasts using external APIs. Features location search, favorites, and detailed weather metrics.",
+        "tags": ["JavaScript", "API", "Chart.js"],
         "links": {
-            "github": "https://family-tree-crm.web.app/",
-            "demo": "https://your-calendar.example.com"
-        }
-    },
-    {
-        "id": 4,
-        "title": "Boston Housing",
-        "description": "An analysis of the Boston Housing dataset using various machine learning techniques.",
-        "tags": ["Python", "Pandas", "scikit-learn", "ML"],
-        "links": {
-            "github": "https://github.com/kuinkelarun/Boston-Housing-Data-Q4",
-            "demo": "https://your-boston-housing.example.com"
+            "github": "https://github.com/yourusername/project-3",
+            "demo": "https://demo.example.com"
         }
     }
 ]
@@ -342,8 +342,8 @@ try:
     # Ensure footerLinks exists so Footer tab isn't empty in admin
     if _get_content('footerLinks') is None:
         sample_footer = [
-            {"id": 1, "provider": "github", "label": "GitHub", "url": "https://github.com/kuinkelarun"},
-            {"id": 2, "provider": "linkedin", "label": "LinkedIn", "url": "https://linkedin.com/in/arun-kuinkel-47404999"}
+            {"id": 1, "provider": "github", "label": "GitHub", "url": "https://github.com/yourusername"},
+            {"id": 2, "provider": "linkedin", "label": "LinkedIn", "url": "https://linkedin.com/in/yourprofile"}
         ]
         _set_content('footerLinks', sample_footer)
 except Exception:

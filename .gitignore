@@ -11,6 +11,9 @@ venv/
 .env
 backend/messages.db
 
+# Data exports (may contain personal information)
+export.json
+
 # Logs
 logs/
 *.log
