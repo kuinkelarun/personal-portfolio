@@ -74,11 +74,11 @@ def _force_cors_headers(response):
 # --- Database helpers (SQLAlchemy if available, otherwise fallback SQLite) ---
 USE_DB_MODULE = False
 try:
-    from .db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, get_all_messages as db_get_all_messages, insert_message as db_insert_message, count_messages as db_count_messages, DB_PATH as DB_PATH
+    from .db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, get_all_messages as db_get_all_messages, insert_message as db_insert_message, count_messages as db_count_messages, delete_message as db_delete_message, delete_messages as db_delete_messages, mark_message_read as db_mark_message_read, mark_messages_read as db_mark_messages_read, DB_PATH as DB_PATH
     USE_DB_MODULE = True
 except Exception:
     try:
-        from db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, get_all_messages as db_get_all_messages, insert_message as db_insert_message, count_messages as db_count_messages, DB_PATH as DB_PATH
+        from db import init_db as db_init, _get_content as db_get_content, _set_content as db_set_content, get_all_content as db_get_all_content, get_all_messages as db_get_all_messages, insert_message as db_insert_message, count_messages as db_count_messages, delete_message as db_delete_message, delete_messages as db_delete_messages, mark_message_read as db_mark_message_read, mark_messages_read as db_mark_messages_read, DB_PATH as DB_PATH
         USE_DB_MODULE = True
     except Exception:
         USE_DB_MODULE = False
@@ -639,21 +639,103 @@ def get_messages():
         else:
             with sqlite3.connect(DB_PATH) as conn:
                 cur = conn.cursor()
-                cur.execute("SELECT id, name, email, message, ip, created_at FROM messages ORDER BY created_at DESC")
-                rows = cur.fetchall()
-                messages = []
-                for r in rows:
-                    messages.append({
-                        'id': r[0],
-                        'name': r[1],
-                        'email': r[2],
-                        'message': r[3],
-                        'ip': r[4],
-                        'created_at': r[5]
-                    })
+                # Try to get read column, fallback if it doesn't exist
+                try:
+                    cur.execute("SELECT id, name, email, message, ip, created_at, read FROM messages ORDER BY created_at DESC")
+                    rows = cur.fetchall()
+                    messages = []
+                    for r in rows:
+                        messages.append({
+                            'id': r[0],
+                            'name': r[1],
+                            'email': r[2],
+                            'message': r[3],
+                            'ip': r[4],
+                            'created_at': r[5],
+                            'read': bool(r[6]) if len(r) > 6 else False
+                        })
+                except sqlite3.OperationalError:
+                    # Column doesn't exist, add it
+                    cur.execute("ALTER TABLE messages ADD COLUMN read INTEGER DEFAULT 0")
+                    conn.commit()
+                    cur.execute("SELECT id, name, email, message, ip, created_at, read FROM messages ORDER BY created_at DESC")
+                    rows = cur.fetchall()
+                    messages = []
+                    for r in rows:
+                        messages.append({
+                            'id': r[0],
+                            'name': r[1],
+                            'email': r[2],
+                            'message': r[3],
+                            'ip': r[4],
+                            'created_at': r[5],
+                            'read': bool(r[6]) if len(r) > 6 else False
+                        })
         return jsonify(messages)
     except Exception as e:
         return jsonify({"error": "Failed to retrieve messages", "details": str(e)}), 500
+
+
+@app.delete("/api/admin/messages")
+def delete_messages_endpoint():
+    """Admin-only: delete one or more messages"""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    
+    try:
+        data = request.get_json()
+        if not data or 'ids' not in data:
+            return jsonify({"error": "Missing 'ids' in request body"}), 400
+        
+        message_ids = data['ids']
+        if not isinstance(message_ids, list) or len(message_ids) == 0:
+            return jsonify({"error": "'ids' must be a non-empty array"}), 400
+        
+        if USE_DB_MODULE:
+            deleted_count = db_delete_messages(message_ids)
+        else:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                placeholders = ','.join('?' * len(message_ids))
+                cur.execute(f"DELETE FROM messages WHERE id IN ({placeholders})", message_ids)
+                deleted_count = cur.rowcount
+                conn.commit()
+        
+        return jsonify({"success": True, "deleted": deleted_count})
+    except Exception as e:
+        return jsonify({"error": "Failed to delete messages", "details": str(e)}), 500
+
+
+@app.patch("/api/admin/messages")
+def mark_messages_read_endpoint():
+    """Admin-only: mark messages as read or unread"""
+    if not _is_admin(request):
+        return jsonify({"error": "unauthorized"}), 401
+    
+    try:
+        data = request.get_json()
+        if not data or 'ids' not in data:
+            return jsonify({"error": "Missing 'ids' in request body"}), 400
+        
+        message_ids = data['ids']
+        is_read = data.get('read', True)  # Default to marking as read
+        
+        if not isinstance(message_ids, list) or len(message_ids) == 0:
+            return jsonify({"error": "'ids' must be a non-empty array"}), 400
+        
+        if USE_DB_MODULE:
+            updated_count = db_mark_messages_read(message_ids, is_read)
+        else:
+            with sqlite3.connect(DB_PATH) as conn:
+                cur = conn.cursor()
+                placeholders = ','.join('?' * len(message_ids))
+                cur.execute(f"UPDATE messages SET read = ? WHERE id IN ({placeholders})", [1 if is_read else 0] + message_ids)
+                updated_count = cur.rowcount
+                conn.commit()
+        
+        return jsonify({"success": True, "updated": updated_count})
+    except Exception as e:
+        return jsonify({"error": "Failed to update messages", "details": str(e)}), 500
 
 
 # --- Content API ---

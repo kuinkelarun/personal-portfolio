@@ -1484,6 +1484,8 @@ function MessagesTab({ token }) {
   const [error, setError] = useState(null)
   const [selectedMessage, setSelectedMessage] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchMessages()
@@ -1501,6 +1503,7 @@ function MessagesTab({ token }) {
       }
       const data = await res.json()
       setMessages(data)
+      setSelectedIds([]) // Clear selection after refresh
     } catch (err) {
       setError(err.message)
     } finally {
@@ -1527,6 +1530,79 @@ function MessagesTab({ token }) {
     }
   }
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === messages.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(messages.map(m => m.id))
+    }
+  }
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
+  const toggleReadStatus = async (ids, currentReadStatus) => {
+    const newReadStatus = !currentReadStatus
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/messages`, {
+        method: 'PATCH',
+        headers: {
+          'X-Admin-Token': token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ids, read: newReadStatus })
+      })
+      
+      if (!res.ok) {
+        throw new Error('Failed to update message status')
+      }
+      
+      // Update local state
+      setMessages(prev => prev.map(msg => 
+        ids.includes(msg.id) ? { ...msg, read: newReadStatus } : msg
+      ))
+    } catch (err) {
+      alert(`Error: ${err.message}`)
+    }
+  }
+
+  const deleteMessages = async (ids) => {
+    const count = ids.length
+    const confirmMsg = count === 1 
+      ? 'Are you sure you want to delete this message?' 
+      : `Are you sure you want to delete ${count} messages?`
+    
+    if (!window.confirm(confirmMsg)) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/messages`, {
+        method: 'DELETE',
+        headers: {
+          'X-Admin-Token': token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ids })
+      })
+      
+      if (!res.ok) {
+        throw new Error('Failed to delete messages')
+      }
+      
+      const result = await res.json()
+      alert(`Successfully deleted ${result.deleted} message(s)`)
+      await fetchMessages() // Refresh list
+      setSelectedMessage(null) // Close expanded view if open
+    } catch (err) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -1550,16 +1626,28 @@ function MessagesTab({ token }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Contact Form Messages</h2>
           <p className="text-sm text-gray-600 mt-1">
             {messages.length} {messages.length === 1 ? 'message' : 'messages'} received
+            {selectedIds.length > 0 && ` • ${selectedIds.length} selected`}
           </p>
         </div>
-        <button onClick={fetchMessages} className="btn-secondary text-sm">
-          🔄 Refresh
-        </button>
+        <div className="flex gap-2">
+          {selectedIds.length > 0 && (
+            <button 
+              onClick={() => deleteMessages(selectedIds)} 
+              disabled={deleting}
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deleting ? 'Deleting...' : `🗑️ Delete Selected (${selectedIds.length})`}
+            </button>
+          )}
+          <button onClick={fetchMessages} className="btn-secondary text-sm">
+            🔄 Refresh
+          </button>
+        </div>
       </div>
 
       {messages.length === 0 ? (
@@ -1569,61 +1657,140 @@ function MessagesTab({ token }) {
           <p className="text-gray-500 text-sm mt-2">Messages sent through the contact form will appear here</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className="glass-card rounded-xl p-6 hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => setSelectedMessage(selectedMessage?.id === msg.id ? null : msg)}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <span className="font-semibold text-gray-900">{msg.name}</span>
-                    <a
-                      href={`mailto:${msg.email}`}
-                      className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                      title="Click to email"
-                    >
-                      {msg.email}
-                    </a>
-                  </div>
-                  <p className={`text-gray-700 ${selectedMessage?.id === msg.id ? '' : 'line-clamp-2'}`}>
-                    {msg.message}
-                  </p>
-                  {selectedMessage?.id === msg.id && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 text-sm space-y-2">
-                      <p className="text-gray-500"><strong>Date:</strong> {formatDate(msg.created_at)}</p>
-                      <p className="text-gray-500"><strong>IP Address:</strong> {msg.ip || 'N/A'}</p>
-                      <div className="mt-3 flex gap-2 flex-wrap">
-                        <a
-                          href={`mailto:${msg.email}?subject=Re: Your message from portfolio&body=Hi ${msg.name},%0D%0A%0D%0A`}
-                          className="btn-primary text-sm"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          📧 Reply via Email
-                        </a>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            copyToClipboard(msg.email, msg.id)
-                          }}
-                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition-colors"
-                        >
-                          {copiedId === msg.id ? '✓ Copied!' : '📋 Copy Email'}
-                        </button>
+        <>
+          {messages.length > 1 && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg">
+              <input
+                type="checkbox"
+                checked={selectedIds.length === messages.length}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+              />
+              <label className="text-sm text-gray-700 cursor-pointer" onClick={toggleSelectAll}>
+                Select All
+              </label>
+            </div>
+          )}
+          <div className="space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`glass-card rounded-xl p-6 hover:shadow-lg transition-all ${
+                  selectedIds.includes(msg.id) ? 'ring-2 ring-indigo-500' : ''
+                } ${msg.read ? 'bg-white/50' : 'bg-gradient-to-r from-indigo-50/80 to-blue-50/80 border-l-4 border-indigo-400'}`}
+              >
+                <div className="flex items-start gap-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(msg.id)}
+                    onChange={(e) => {
+                      e.stopPropagation()
+                      toggleSelect(msg.id)
+                    }}
+                    className="mt-1 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                  />
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => {
+                      const isExpanding = selectedMessage?.id !== msg.id
+                      if (isExpanding && !msg.read) {
+                        // Mark as read when expanding unread message
+                        toggleReadStatus([msg.id], false)
+                      }
+                      setSelectedMessage(isExpanding ? msg : null)
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          {!msg.read && (
+                            <span className="px-2 py-0.5 bg-indigo-500 text-white text-xs font-semibold rounded">
+                              NEW
+                            </span>
+                          )}
+                          <span className="font-semibold text-gray-900">{msg.name}</span>
+                          <a
+                            href={`mailto:${msg.email}`}
+                            className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Click to email"
+                          >
+                            {msg.email}
+                          </a>
+                        </div>
+                        <p className={`text-gray-700 ${selectedMessage?.id === msg.id ? '' : 'line-clamp-2'}`}>
+                          {msg.message}
+                        </p>
+                        {selectedMessage?.id === msg.id && (
+                          <div className="mt-4 pt-4 border-t border-gray-200 text-sm space-y-2">
+                            <p className="text-gray-500"><strong>Date:</strong> {formatDate(msg.created_at)}</p>
+                            <p className="text-gray-500"><strong>IP Address:</strong> {msg.ip || 'N/A'}</p>
+                            <div className="mt-3 flex gap-2 flex-wrap">
+                              <a
+                                href={`mailto:${msg.email}?subject=Re: Your message from portfolio&body=Hi ${msg.name},%0D%0A%0D%0A`}
+                                className="btn-primary text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                📧 Reply via Email
+                              </a>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  copyToClipboard(msg.email, msg.id)
+                                }}
+                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition-colors"
+                              >
+                                {copiedId === msg.id ? '✓ Copied!' : '📋 Copy Email'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2 ml-4">
+                        <div className="text-sm text-gray-500 whitespace-nowrap">
+                          {formatDate(msg.created_at).split(',')[0]}
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleReadStatus([msg.id], msg.read)
+                            }}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            title={msg.read ? 'Mark as unread' : 'Mark as read'}
+                          >
+                            {msg.read ? (
+                              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              deleteMessages([msg.id])
+                            }}
+                            disabled={deleting}
+                            className="p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Delete message"
+                          >
+                            <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
-                <div className="text-right text-sm text-gray-500 ml-4">
-                  {formatDate(msg.created_at).split(',')[0]}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )
