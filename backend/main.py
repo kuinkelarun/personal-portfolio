@@ -43,7 +43,7 @@ else:
         "http://localhost:5175", "http://127.0.0.1:5175"
     ]
 
-CORS(app, resources={r"/api/*": {"origins": cors_origins}}, supports_credentials=False)
+CORS(app, resources={r"/api/*": {"origins": cors_origins, "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]}}, supports_credentials=False)
 
 limiter = Limiter(get_remote_address, app=app, default_limits=[])
 
@@ -65,7 +65,7 @@ def _force_cors_headers(response):
             else:
                 response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-ADMIN-TOKEN"
-        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
     except Exception:
         # Be conservative: don't fail the request if header injection fails
         pass
