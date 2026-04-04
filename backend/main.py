@@ -1,9 +1,11 @@
 import os
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+import jwt
 from flask import Flask, jsonify, request, send_from_directory, redirect
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash
 from pathlib import Path
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -14,14 +16,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configuration
-CERTAIN_FRONTEND = "https://personal-portfolio-ten-phi-73.vercel.app"
+CERTAIN_FRONTEND = "https://kuinkelarun-portfolio.vercel.app"
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 # Prefer an explicit env var, otherwise fall back to the known frontend URL for your deployment
 FRONTEND_URL = os.getenv("FRONTEND_URL", CERTAIN_FRONTEND)
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS")
 RATE_LIMIT = os.getenv("RATE_LIMIT", "5/minute")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///messages.db")
-ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "admin")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
+ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
 # Gate admin/debug endpoints. Set this env var to '1' or 'true' to enable them in production for troubleshooting.
 ENABLE_ADMIN_DEBUG = os.getenv("ENABLE_ADMIN_DEBUG", "0").lower() in ("1", "true", "yes")
 
@@ -738,13 +741,39 @@ def mark_messages_read_endpoint():
         return jsonify({"error": "Failed to update messages", "details": str(e)}), 500
 
 
+# --- Admin Login ---
+@app.post('/api/admin/login')
+@limiter.limit("10/hour")
+def admin_login():
+    if not request.is_json:
+        return jsonify({"error": "expected json body"}), 400
+    data = request.get_json()
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+    if not email or not password:
+        return jsonify({"error": "email and password required"}), 400
+    expected_email = ADMIN_EMAIL.strip().lower()
+    if not expected_email or email != expected_email or not ADMIN_PASSWORD_HASH or not check_password_hash(ADMIN_PASSWORD_HASH, password):
+        return jsonify({"error": "invalid credentials"}), 403
+    token = jwt.encode(
+        {"sub": email, "iat": datetime.utcnow(), "exp": datetime.utcnow() + timedelta(hours=8)},
+        SECRET_KEY,
+        algorithm="HS256",
+    )
+    return jsonify({"token": token})
+
+
 # --- Content API ---
 def _is_admin(request):
-    # Use the module-level ADMIN_TOKEN (read from env at startup)
-    admin_token = ADMIN_TOKEN
-    # Header `X-ADMIN-TOKEN` or query param `admin_token`
-    provided = request.headers.get("X-ADMIN-TOKEN") or request.args.get("admin_token")
-    return provided and provided == admin_token
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return False
+    token = auth_header[7:]
+    try:
+        jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return True
+    except jwt.InvalidTokenError:
+        return False
 
 
 @app.get('/api/content')
