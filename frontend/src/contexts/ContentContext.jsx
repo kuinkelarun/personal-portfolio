@@ -62,7 +62,7 @@ export function ContentProvider({ children }) {
       const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
       const url = base ? `${base}/api/content/${encodeURIComponent(key)}` : `/api/content/${encodeURIComponent(key)}`
       await axios.put(url, value, {
-        headers: token ? { 'X-ADMIN-TOKEN': token } : {}
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       })
       // refresh
       await fetchContent()

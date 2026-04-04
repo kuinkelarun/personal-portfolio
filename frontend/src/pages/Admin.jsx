@@ -9,6 +9,9 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 export default function Admin() {
   const [token, setToken] = useState(localStorage.getItem('admin_token') || '')
   const [unlocked, setUnlocked] = useState(!!localStorage.getItem('admin_token'))
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('about')
   const [message, setMessage] = useState({ type: '', text: '' })
   const [saving, setSaving] = useState(false)
@@ -66,14 +69,29 @@ export default function Admin() {
     if (unlocked) fetchContent()
   }, [unlocked])
 
-  function saveToken() {
-    if (!token.trim()) {
-      showMessage('error', 'Please enter an admin token')
+  async function handleLogin() {
+    if (!email.trim() || !password.trim()) {
+      showMessage('error', 'Please enter your email and password')
       return
     }
-    localStorage.setItem('admin_token', token)
-    setUnlocked(true)
-    showMessage('success', 'Admin access granted')
+    setLoginLoading(true)
+    try {
+      const res = await axios.post(`${API_BASE}/api/admin/login`, { email, password })
+      const jwt = res.data?.token
+      if (jwt) {
+        localStorage.setItem('admin_token', jwt)
+        setToken(jwt)
+        setUnlocked(true)
+        setPassword('')
+      } else {
+        showMessage('error', 'Login failed: no token returned')
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Invalid credentials'
+      showMessage('error', msg)
+    } finally {
+      setLoginLoading(false)
+    }
   }
 
   function markDirty(key) {
@@ -112,26 +130,27 @@ export default function Admin() {
     setTimeout(() => setMessage({ type: '', text: '' }), 4000)
   }
 
-  // If an admin token is provided via URL query (e.g. ?admin_token=...), apply it for this origin.
-  // This helps when you open the site under a different host (127.0.0.1 vs localhost).
+  // Validate stored JWT on mount — clear it if expired
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search)
-      const t = params.get('admin_token') || params.get('token')
-      if (t) {
-        localStorage.setItem('admin_token', t)
-        setToken(t)
-        setUnlocked(true)
-        showMessage('success', 'Admin token applied from URL for this origin')
-        // Remove token from URL to avoid leaking in history
-        try {
-          const u = new URL(window.location.href)
-          u.searchParams.delete('admin_token')
-          u.searchParams.delete('token')
-          window.history.replaceState(null, '', u.pathname + u.search + u.hash)
-        } catch (e) {}
+    const stored = localStorage.getItem('admin_token')
+    if (stored) {
+      try {
+        const parts = stored.split('.')
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]))
+          if (payload.exp && Date.now() / 1000 > payload.exp) {
+            localStorage.removeItem('admin_token')
+            setToken('')
+            setUnlocked(false)
+          }
+        }
+      } catch (e) {
+        // malformed token — clear it
+        localStorage.removeItem('admin_token')
+        setToken('')
+        setUnlocked(false)
       }
-    } catch (e) {}
+    }
   }, [])
 
   async function saveSection(section) {
@@ -158,7 +177,7 @@ export default function Admin() {
       const fd = new FormData()
       fd.append('file', file)
       const res = await axios.post(`${API_BASE}/api/upload`, fd, {
-        headers: { 'X-ADMIN-TOKEN': token, 'Content-Type': 'multipart/form-data' }
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       })
       const url = res.data?.url
       if (url) {
@@ -272,24 +291,41 @@ export default function Admin() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Access</h1>
-            <p className="text-gray-600">Enter your admin token to continue</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Sign In</h1>
+            <p className="text-gray-600">Sign in to manage your portfolio</p>
           </div>
 
           <div className="space-y-4">
-            <input
-              type="password"
-              value={token}
-              onChange={e => setToken(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && saveToken()}
-              placeholder="Enter admin token..."
-              className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all outline-none"
-            />
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                placeholder="admin@example.com"
+                autoComplete="username"
+                className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all outline-none"
+              />
+            </div>
             <button
-              onClick={saveToken}
-              className="w-full btn-primary"
+              onClick={handleLogin}
+              disabled={loginLoading}
+              className="w-full btn-primary disabled:opacity-60"
             >
-              Unlock Admin Panel
+              {loginLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </div>
 
@@ -1229,10 +1265,21 @@ function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
     update([...projects, newProject])
   }
 
+  function onDragEnd(result) {
+    if (!result.destination || result.destination.index === result.source.index) return
+    const reordered = Array.from(projects)
+    const [moved] = reordered.splice(result.source.index, 1)
+    reordered.splice(result.destination.index, 0, moved)
+    update(reordered)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Projects</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Projects</h2>
+          <p className="text-sm text-gray-500 mt-1">Drag the handle to reorder. Order is reflected on the live site.</p>
+        </div>
         <button onClick={handleAdd} className="btn-secondary inline-flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1241,105 +1288,135 @@ function ProjectsTab({ data, update, save, saving, uploadImage, token }) {
         </button>
       </div>
 
-      {projects.map((project, idx) => (
-        <div key={project.id || idx} className="p-6 bg-gray-50 rounded-xl border-2 border-gray-200">
-          <div className="flex items-start justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-900">Project #{idx + 1}</h3>
-            <button
-              onClick={() => update(projects.filter((_, i) => i !== idx))}
-              className="text-red-500 hover:text-red-700"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
-          </div>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Droppable droppableId="projects">
+          {(provided) => (
+            <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
+              {projects.map((project, idx) => (
+                <Draggable key={String(project.id || idx)} draggableId={String(project.id || idx)} index={idx}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={`p-6 bg-gray-50 rounded-xl border-2 transition-shadow ${snapshot.isDragging ? 'border-indigo-400 shadow-lg' : 'border-gray-200'}`}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          {/* Drag handle */}
+                          <div
+                            {...provided.dragHandleProps}
+                            className="flex flex-col gap-1 cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600"
+                            title="Drag to reorder"
+                          >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"/>
+                            </svg>
+                          </div>
+                          <span className="px-2 py-0.5 text-xs font-bold bg-indigo-100 text-indigo-700 rounded-full">#{idx + 1}</span>
+                          <h3 className="text-lg font-bold text-gray-900 truncate max-w-xs">{project.title || 'Untitled Project'}</h3>
+                        </div>
+                        <button
+                          onClick={() => update(projects.filter((_, i) => i !== idx))}
+                          className="text-red-500 hover:text-red-700 flex-shrink-0"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
 
-          <input
-            type="text"
-            value={project.title || ''}
-            onChange={e => {
-              const newData = [...projects]
-              newData[idx] = { ...newData[idx], title: e.target.value }
-              update(newData)
-            }}
-            placeholder="Project Title"
-            className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none mb-4"
-          />
+                      <input
+                        type="text"
+                        value={project.title || ''}
+                        onChange={e => {
+                          const newData = [...projects]
+                          newData[idx] = { ...newData[idx], title: e.target.value }
+                          update(newData)
+                        }}
+                        placeholder="Project Title"
+                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none mb-4"
+                      />
 
-          <textarea
-            value={project.description || ''}
-            onChange={e => {
-              const newData = [...projects]
-              newData[idx] = { ...newData[idx], description: e.target.value }
-              update(newData)
-            }}
-            rows={3}
-            placeholder="Project description..."
-            className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none resize-none mb-4"
-          />
+                      <textarea
+                        value={project.description || ''}
+                        onChange={e => {
+                          const newData = [...projects]
+                          newData[idx] = { ...newData[idx], description: e.target.value }
+                          update(newData)
+                        }}
+                        rows={3}
+                        placeholder="Project description..."
+                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none resize-none mb-4"
+                      />
 
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
-            <input
-              type="text"
-              value={project.demo || ''}
-              onChange={e => {
-                const newData = [...projects]
-                newData[idx] = { ...newData[idx], demo: e.target.value }
-                update(newData)
-              }}
-              placeholder="Demo URL"
-              className="px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
-            />
-            <input
-              type="text"
-              value={project.github || ''}
-              onChange={e => {
-                const newData = [...projects]
-                newData[idx] = { ...newData[idx], github: e.target.value }
-                update(newData)
-              }}
-              placeholder="GitHub URL"
-              className="px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
-            />
-          </div>
+                      <div className="grid md:grid-cols-2 gap-4 mb-4">
+                        <input
+                          type="text"
+                          value={project.demo || ''}
+                          onChange={e => {
+                            const newData = [...projects]
+                            newData[idx] = { ...newData[idx], demo: e.target.value }
+                            update(newData)
+                          }}
+                          placeholder="Demo URL"
+                          className="px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+                        />
+                        <input
+                          type="text"
+                          value={project.github || ''}
+                          onChange={e => {
+                            const newData = [...projects]
+                            newData[idx] = { ...newData[idx], github: e.target.value }
+                            update(newData)
+                          }}
+                          placeholder="GitHub URL"
+                          className="px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+                        />
+                      </div>
 
-          <input
-            type="text"
-            value={(project.tech || []).join(', ')}
-            onChange={e => {
-              const newData = [...projects]
-              newData[idx] = { ...newData[idx], tech: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }
-              update(newData)
-            }}
-            placeholder="Technologies (comma-separated)"
-            className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none mb-4"
-          />
+                      <input
+                        type="text"
+                        value={(project.tech || []).join(', ')}
+                        onChange={e => {
+                          const newData = [...projects]
+                          newData[idx] = { ...newData[idx], tech: e.target.value.split(',').map(t => t.trim()).filter(Boolean) }
+                          update(newData)
+                        }}
+                        placeholder="Technologies (comma-separated)"
+                        className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none mb-4"
+                      />
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Project Image</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={e => {
-                if (e.target.files[0]) {
-                  uploadImage(e.target.files[0], 'projects', 'image').then(url => {
-                    if (url) {
-                      const newData = [...projects]
-                      newData[idx] = { ...newData[idx], image: url }
-                      update(newData)
-                    }
-                  })
-                }
-              }}
-              className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
-            />
-            {project.image && (
-              <img src={project.image} alt={project.title} className="mt-2 w-full h-32 object-cover rounded-lg" />
-            )}
-          </div>
-        </div>
-      ))}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Project Image</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => {
+                            if (e.target.files[0]) {
+                              uploadImage(e.target.files[0], 'projects', 'image').then(url => {
+                                if (url) {
+                                  const newData = [...projects]
+                                  newData[idx] = { ...newData[idx], image: url }
+                                  update(newData)
+                                }
+                              })
+                            }
+                          }}
+                          className="w-full px-4 py-2 rounded-lg border-2 border-gray-200 focus:border-indigo-500 outline-none"
+                        />
+                        {project.image && (
+                          <img src={project.image} alt={project.title} className="mt-2 w-full h-32 object-cover rounded-lg" />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
 
       <div className="flex gap-3 pt-6 border-t border-gray-200">
         <button onClick={save} disabled={saving} className="btn-primary disabled:opacity-50">
@@ -1496,7 +1573,7 @@ function MessagesTab({ token }) {
     setError(null)
     try {
       const res = await fetch(`${API_BASE}/api/admin/messages`, {
-        headers: { 'X-Admin-Token': token }
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (!res.ok) {
         throw new Error(res.status === 401 ? 'Unauthorized' : 'Failed to fetch messages')
@@ -1550,7 +1627,7 @@ function MessagesTab({ token }) {
       const res = await fetch(`${API_BASE}/api/admin/messages`, {
         method: 'PATCH',
         headers: {
-          'X-Admin-Token': token,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ ids, read: newReadStatus })
@@ -1582,7 +1659,7 @@ function MessagesTab({ token }) {
       const res = await fetch(`${API_BASE}/api/admin/messages`, {
         method: 'DELETE',
         headers: {
-          'X-Admin-Token': token,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ ids })
