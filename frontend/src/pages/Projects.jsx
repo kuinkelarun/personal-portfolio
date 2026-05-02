@@ -139,7 +139,7 @@ export default function Projects() {
                     {project.title ?? project.name ?? 'Untitled Project'}
                   </h3>
 
-                  <p className="text-gray-600 mb-4 leading-relaxed line-clamp-3">
+                  <p className="text-gray-600 mb-4 leading-relaxed line-clamp-3 whitespace-pre-wrap">
                     {project.description}
                   </p>
 
@@ -248,7 +248,7 @@ export default function Projects() {
                         className="h-full overflow-y-auto py-3 pr-1"
                         style={{ scrollbarWidth: 'thin', scrollbarColor: '#c7d2fe transparent' }}
                       >
-                        <p className="text-gray-600 text-sm leading-relaxed">
+                        <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">
                           {project.description}
                         </p>
                       </div>
